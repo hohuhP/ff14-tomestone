@@ -2,197 +2,183 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFXIV Gear & Log Inspector</title>
+    <title>FFXIV Pro Gear Editor</title>
     <style>
-        :root { --bg: #0d0e12; --card: #14151a; --primary: #a855f7; --text: #e5e7eb; --sub: #9ca3af; --border: #262626; --accent: #10b981; --materia: #3b82f6; }
-        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 1000px; }
+        :root { --bg: #0b0c10; --card: #14151a; --primary: #a855f7; --text: #e5e7eb; --sub: #9ca3af; --border: #262626; --accent: #10b981; --materia: #3b82f6; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; }
+        .wrapper { max-width: 1200px; margin: 0 auto; }
         
-        /* 1. 설정 및 필터 섹션 */
-        .config-section { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
-        .input-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
-        .input-group label { display: block; font-size: 11px; color: var(--sub); margin-bottom: 8px; text-transform: uppercase; }
-        .input-field { width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 6px; box-sizing: border-box; outline: none; }
-        .input-field:focus { border-color: var(--primary); }
-        .btn-update { width: 100%; background: var(--primary); color: #fff; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.2s; margin-top: 10px; }
-        
-        /* 2. 상태 메시지 */
-        #status-msg { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
-        .owner-badge { display: none; background: rgba(16, 185, 129, 0.1); color: var(--accent); padding: 10px; border-radius: 6px; border: 1px solid var(--accent); margin-bottom: 20px; text-align: center; font-size: 13px; }
+        /* 설정 섹션 */
+        .config-box { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .input-field { background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 6px; outline: none; }
+        .btn-main { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
-        /* 3. 분석 결과 및 장비창 */
-        #results-area { display: none; width: 100%; }
-        .inspector-panel { background: #0a0a0c; border: 1px solid var(--primary); border-radius: 12px; padding: 25px; margin-bottom: 30px; position: relative; }
-        .gear-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .gear-item { background: #111; border: 1px solid #222; padding: 15px; border-radius: 8px; position: relative; display: flex; flex-direction: column; gap: 10px; }
-        
-        /* 수정 버튼 및 마테리아 */
-        .btn-edit { position: absolute; top: 10px; right: 10px; font-size: 10px; background: var(--primary); color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; display: none; }
-        .materia-container { display: flex; gap: 6px; }
-        .materia-slot { width: 14px; height: 14px; border-radius: 50%; background: #222; border: 1px solid #444; }
-        .materia-slot.active { background: var(--materia); box-shadow: 0 0 8px var(--materia); border: none; }
+        /* 로그 요약 바 */
+        .log-header { background: linear-gradient(90deg, #1a1c23, #0d0e12); border: 1px solid var(--primary); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .log-info h2 { margin: 0; font-size: 1.2rem; }
+        .log-info span { color: var(--sub); font-size: 0.9rem; }
 
-        /* 로그 리스트 레이아웃 */
-        .report-list { display: grid; gap: 15px; }
-        .report-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: 0.3s; }
-        .report-card:hover { border-color: #444; }
-        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
-        .member-btn { background: #1a1c23; border: 1px solid #333; padding: 10px; border-radius: 5px; color: #fff; cursor: pointer; text-align: center; font-size: 12px; }
-        .member-btn:hover { background: var(--primary); border-color: var(--primary); }
+        /* 장비 그리드 */
+        .gear-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }
+        .gear-card { background: #111; border: 1px solid #222; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; transition: 0.3s; }
+        .gear-card.editing { border-color: var(--primary); box-shadow: 0 0 10px rgba(168, 85, 247, 0.2); }
+        .gear-icon { width: 52px; height: 52px; border-radius: 6px; border: 1px solid #333; cursor: pointer; }
+        
+        .materia-group { display: flex; gap: 6px; margin-top: 8px; }
+        .materia-slot { width: 20px; height: 20px; border-radius: 50%; background: #222; border: 1px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .materia-slot img { width: 100%; height: 100%; }
+
+        /* 검색 모달 */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; background: var(--card); border: 1px solid var(--primary); border-radius: 12px; z-index: 1000; padding: 20px; }
+        #search-results { max-height: 300px; overflow-y: auto; margin-top: 10px; }
+        .search-item { display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; border-bottom: 1px solid #222; }
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="config-section">
-        <div class="input-row">
-            <div class="input-group"><label>Client ID</label><input type="text" id="client-id" class="input-field" placeholder="ID"></div>
-            <div class="input-group"><label>Client Secret</label><input type="password" id="client-secret" class="input-field" placeholder="Secret"></div>
-        </div>
-        <div class="input-row">
-            <div class="input-group"><label>Character Name</label><input type="text" id="char-name" class="input-field" placeholder="닉네임"></div>
-            <div class="input-group">
-                <label>Server</label>
-                <select id="server-select" class="input-field">
-                    <option value="Fenrir">펜리르</option>
-                    <option value="Chocobo">초코보</option>
-                    <option value="Moogle">모그리</option>
-                    <option value="Carbuncle">카벙클</option>
-                    <option value="Tonberry">톤베리</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Category</label>
-                <select id="category-select" class="input-field">
-                    <option value="ultimate">절 (Ultimate)</option>
-                    <option value="savage">영식 (Savage)</option>
-                    <option value="extreme">극 (Extreme)</option>
-                    <option value="etc">기타 (Etc)</option>
-                </select>
-            </div>
-        </div>
-        <button class="btn-update" onclick="startVerification()">데이터 가져오기 및 인증</button>
+<div class="wrapper">
+    <div class="config-box">
+        <input type="text" id="api-key" class="input-field" placeholder="FFLogs API Key (v2)">
+        <input type="text" id="report-id" class="input-field" placeholder="Report ID (예: JxY9V7K2b...) ">
+        <button class="btn-main" onclick="fetchRealLog()">로그 데이터 가져오기</button>
     </div>
 
-    <div id="status-msg">FFLogs 데이터를 동기화 중입니다...</div>
-    <div id="owner-status" class="owner-badge">✔ 본인 계정 캐릭터로 확인되었습니다. 장비 및 마테리아 수정 권한이 활성화됩니다.</div>
-
-    <div id="results-area">
-        <!-- 장비 인스펙터 (수정 기능 포함) -->
-        <div id="inspector" class="inspector-panel" style="display:none;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:15px;">
-                <div>
-                    <h2 id="target-name" style="margin:0;">캐릭터명</h2>
-                    <span id="target-server" style="color:var(--sub); font-size:12px;">Server Info</span>
-                </div>
-                <div style="text-align:right">
-                    <div style="font-size:11px; color:var(--sub)">AVG ITEM LEVEL</div>
-                    <div id="avg-ilvl" style="font-size:32px; font-weight:bold; color:var(--accent)">0.00</div>
-                </div>
+    <div id="main-content" style="display:none;">
+        <div class="log-header">
+            <div class="log-info">
+                <span id="log-date">DATE: 2026-05-13</span>
+                <h2 id="log-title">REPORT TITLE</h2>
+                <div id="char-list" style="margin-top:10px; display:flex; gap:10px;"></div>
             </div>
-            <div id="gear-grid" class="gear-grid"></div>
-            <button onclick="document.getElementById('inspector').style.display='none'" style="margin-top:20px; width:100%; background:#222; border:none; color:#fff; padding:12px; border-radius:6px; cursor:pointer;">닫기</button>
+            <div style="text-align:right">
+                <button id="edit-all-btn" class="btn-main" style="background:var(--accent);" onclick="toggleEditMode()">모든 장비 수정 모드</button>
+                <div id="avg-display" style="font-size:24px; font-weight:bold; color:var(--primary); margin-top:10px;">i000.00</div>
+            </div>
         </div>
 
-        <!-- 로그 리스트 -->
-        <div id="report-list" class="report-list"></div>
+        <div id="gear-grid" class="gear-container"></div>
     </div>
 </div>
 
-<script>
-    let itemDB = new Map();
-    let isOwner = false;
-    const slots = ["주무기", "보조무기", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지 1", "반지 2"];
+<div id="modal-overlay" class="overlay" onclick="closeModal()"></div>
+<div id="search-modal" class="modal">
+    <h4 id="modal-title" style="margin:0 0 15px 0;">아이템 검색</h4>
+    <input type="text" id="search-input" class="input-field" style="width:100%; box-sizing:border-box;" placeholder="이름으로 검색..." oninput="filterItems(this.value)">
+    <div id="search-results"></div>
+</div>
 
+<script>
+    let itemDB = [];
+    let materiaDB = [];
+    let isEditMode = false;
+    let currentLogData = null;
+    let activeSelection = { slotIdx: null, matIdx: null };
+
+    // 1. 한국어 DB 로드
     async function loadDB() {
         const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
         const text = await res.text();
-        text.split('\n').slice(3).forEach(line => {
+        itemDB = text.split('\n').slice(3).map(line => {
             const c = line.split(',');
-            if(c[0]) itemDB.set(c[0].trim(), { name: c[1]?.replace(/"/g,''), icon: c[2]?.padStart(6,'0'), ilvl: parseInt(c[12])||0 });
-        });
+            return { id: c[0]?.trim(), name: c[1]?.replace(/"/g,''), icon: c[2]?.padStart(6,'0'), ilvl: parseInt(c[12])||0 };
+        }).filter(i => i.name);
+        materiaDB = itemDB.filter(i => i.name.includes("마테리"));
     }
 
-    function startVerification() {
-        const charName = document.getElementById('char-name').value;
-        const category = document.getElementById('category-select').value;
-        if(!charName) return alert("캐릭터명을 입력해주세요.");
+    // 2. 실제 로그 가져오기 (FFLogs API v2 시뮬레이션 및 연동 구조)
+    async function fetchRealLog() {
+        const reportId = document.getElementById('report-id').value;
+        if(!reportId) return alert("Report ID를 입력해주세요.");
 
-        document.getElementById('status-msg').style.display = 'block';
-        document.getElementById('results-area').style.display = 'none';
+        // 실제 구현 시 여기서 GQL 호출
+        // 아래는 API로부터 받아온 데이터를 가정함
+        currentLogData = {
+            title: "희망의 낙원 에덴: 재생편 4 (영웅)",
+            date: "2026-05-13",
+            gear: Array(12).fill(null).map(() => ({ id: "42431", materias: Array(5).fill(null) }))
+        };
 
-        // FFLogs 본인인증 시뮬레이션 (API의 me 쿼리 결과 대조 가정)
-        setTimeout(() => {
-            isOwner = true; // 본인인증 성공 가정
-            document.getElementById('status-msg').style.display = 'none';
-            document.getElementById('owner-status').style.display = 'block';
-            document.getElementById('results-area').style.display = 'block';
-            renderReports(charName, category);
-        }, 1000);
+        document.getElementById('log-title').innerText = currentLogData.title;
+        document.getElementById('main-content').style.display = 'block';
+        renderGear();
     }
 
-    function renderReports(name, category) {
-        const list = document.getElementById('report-list');
-        const contentName = { ultimate: "절 또 하나의 미래", savage: "희망의 낙원 에덴: 재생편 4", extreme: "극 이터널", etc: "일반 던전" }[category];
-        
-        // 여러 개의 로그 리스트 생성
-        list.innerHTML = [1, 2, 3].map(i => `
-            <div class="report-card">
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="font-weight:bold;">[${contentName}] 리포트 #${i}</span>
-                    <span style="color:var(--primary)">2026-05-13</span>
-                </div>
-                <div class="party-grid">
-                    ${[name, "팀원A", "팀원B", "팀원C", "팀원D", "팀원E", "팀원F", "팀원G"].map(p => `
-                        <div class="member-btn" onclick="showGear('${p}')">${p}</div>
-                    `).join('')}
-                </div>
-            </div>
-        `).join('');
+    // 3. 통합 수정 모드 토글
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById('edit-all-btn');
+        btn.innerText = isEditMode ? "수정 완료 (저장)" : "모든 장비 수정 모드";
+        btn.style.background = isEditMode ? "var(--primary)" : "var(--accent)";
+        renderGear();
     }
 
-    function showGear(name) {
-        document.getElementById('target-name').innerText = name;
-        document.getElementById('target-server').innerText = document.getElementById('server-select').value;
-        
-        // 예시 장비 데이터 (실제 연동 시 API에서 가져온 ID 배열)
-        const mockIds = ["42431", "42432", "42433", "42434", "42435", "42436", "42437", "42438", "42439", "42440", "42441", "42441"];
-        
-        let sum = 0;
-        const html = mockIds.map((id, i) => {
-            const item = itemDB.get(id) || { name: "정보 없음", ilvl: 0, icon: "000001" };
-            sum += item.ilvl;
+    function renderGear() {
+        const slots = ["주무기", "보조무기", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지 1", "반지 2"];
+        let totalIlvl = 0;
+
+        const html = currentLogData.gear.map((g, i) => {
+            const item = itemDB.find(it => it.id === g.id) || { name: "알 수 없음", icon: "000001", ilvl: 0 };
+            totalIlvl += item.ilvl;
             return `
-                <div class="gear-item">
-                    <button class="btn-edit" style="display: ${isOwner && name === document.getElementById('char-name').value ? 'block' : 'none'}" onclick="event.stopPropagation(); editSlot(${i})">수정</button>
-                    <div style="display:flex; gap:12px; align-items:center;">
-                        <img src="https://xivapi.com/i/${item.icon.substring(0,3)}000/${item.icon}.png" width="42">
-                        <div>
-                            <div style="font-size:10px; color:var(--sub)">${slots[i]}</div>
-                            <div style="font-size:12px; font-weight:bold;">${item.name}</div>
-                            <div style="font-size:11px; color:var(--primary)">iLvl ${item.ilvl}</div>
+                <div class="gear-card ${isEditMode ? 'editing' : ''}">
+                    <img class="gear-icon" src="https://xivapi.com/i/${item.icon.substring(0,3)}000/${item.icon}.png" 
+                         onclick="${isEditMode ? `openModal(${i}, null)` : ''}">
+                    <div style="flex:1">
+                        <div style="font-size:11px; color:var(--sub)">${slots[i]}</div>
+                        <div style="font-weight:bold; font-size:14px;">${item.name}</div>
+                        <div class="materia-group">
+                            ${g.materias.map((mId, mIdx) => {
+                                const m = materiaDB.find(mat => mat.id === mId);
+                                return `<div class="materia-slot" onclick="${isEditMode ? `openModal(${i}, ${mIdx})` : ''}">
+                                    ${m ? `<img src="https://xivapi.com/i/${m.icon.substring(0,3)}000/${m.icon}.png">` : '+'}
+                                </div>`;
+                            }).join('')}
                         </div>
                     </div>
-                    <div class="materia-container">
-                        <div class="materia-slot active" title="장착됨"></div>
-                        <div class="materia-slot active" title="장착됨"></div>
-                        <div class="materia-slot" onclick="${isOwner ? 'alert(\'마테리아 DB 호출\')' : ''}"></div>
-                        <div class="materia-slot"></div>
-                        <div class="materia-slot"></div>
-                    </div>
+                    <div style="color:var(--accent); font-weight:bold;">i${item.ilvl}</div>
                 </div>
             `;
         }).join('');
 
-        document.getElementById('avg-ilvl').innerText = (sum / 12).toFixed(2);
         document.getElementById('gear-grid').innerHTML = html;
-        document.getElementById('inspector').style.display = 'block';
-        window.scrollTo({ top: document.getElementById('inspector').offsetTop - 20, behavior: 'smooth' });
+        document.getElementById('avg-display').innerText = `i${(totalIlvl/12).toFixed(2)}`;
     }
 
-    function editSlot(idx) {
-        const id = prompt(`${slots[idx]}의 새 아이템 ID를 입력하세요.`);
-        if(id && itemDB.has(id)) alert("아이템이 변경되었습니다. (시뮬레이션)");
+    // 4. 검색 및 교체
+    function openModal(sIdx, mIdx) {
+        activeSelection = { sIdx, mIdx };
+        document.getElementById('modal-title').innerText = mIdx === null ? "장비 검색" : "마테리아 검색";
+        document.getElementById('modal-overlay').style.display = 'block';
+        document.getElementById('search-modal').style.display = 'block';
+        document.getElementById('search-input').value = "";
+        document.getElementById('search-results').innerHTML = "";
+    }
+
+    function filterItems(query) {
+        if(query.length < 2) return;
+        const db = activeSelection.mIdx === null ? itemDB : materiaDB;
+        const filtered = db.filter(i => i.name.includes(query)).slice(0, 20);
+        
+        document.getElementById('search-results').innerHTML = filtered.map(item => `
+            <div class="search-item" onclick="applySelection('${item.id}')">
+                <img src="https://xivapi.com/i/${item.icon.substring(0,3)}000/${item.icon}.png" width="30">
+                <span>${item.name} (i${item.ilvl})</span>
+            </div>
+        `).join('');
+    }
+
+    function applySelection(id) {
+        const { sIdx, mIdx } = activeSelection;
+        if(mIdx === null) currentLogData.gear[sIdx].id = id;
+        else currentLogData.gear[sIdx].materias[mIdx] = id;
+        renderGear();
+        closeModal();
+    }
+
+    function closeModal() {
+        document.getElementById('modal-overlay').style.display = 'none';
+        document.getElementById('search-modal').style.display = 'none';
     }
 
     loadDB();
