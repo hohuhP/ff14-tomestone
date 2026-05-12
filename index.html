@@ -10,31 +10,17 @@
         .container { width: 100%; max-width: 700px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         
-        /* 로그 카드 스타일 */
         .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; overflow: hidden; border-left: 5px solid #444; }
         .log-card.is-clear { border-left-color: var(--clear); }
         .log-card.is-wipe { border-left-color: var(--wipe); }
         .log-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
         
-        /* 파티원 4x2 그리드 */
         .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #0a0a0a; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .player-item { 
-            font-size: 11px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            padding: 8px 4px; 
-            background: #161616; 
-            border-radius: 6px;
-            gap: 5px;
-        }
+        .player-item { font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: #161616; border-radius: 6px; gap: 5px; min-height: 50px; }
         
-        /* 직업 아이콘 스타일 */
         .job-icon { width: 20px; height: 20px; border-radius: 3px; }
         .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
 
-        /* 직업별 색상 */
         .job-tank { color: #2d71c1; }
         .job-healer { color: #467837; }
         .job-dps { color: #ad413d; }
@@ -72,7 +58,6 @@
         </div>
         <button class="btn-save" onclick="saveSettings()">설정 저장 및 시작</button>
     </div>
-
     <div id="main-content"></div>
 </div>
 
@@ -124,11 +109,11 @@
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
-                        recentReports(limit: 15) { 
+                        recentReports(limit: 20) { 
                             data {
                                 code title
-                                masterData { actors(type: "Player") { id name icon } }
-                                fights { id kill name friendlyPlayers }
+                                masterData { actors(type: "Player") { id name icon type } }
+                                fights { id kill name friendlyPlayers boss difficulty }
                             }
                         }
                     }
@@ -151,8 +136,6 @@
         if (jobGroup.Tank.includes(iconName)) group = 'job-tank';
         else if (jobGroup.Healer.includes(iconName)) group = 'job-healer';
         else if (jobGroup.Dps.includes(iconName)) group = 'job-dps';
-        
-        // FFLogs 아이콘 URL 생성 규칙
         const iconUrl = `https://assets.rpglogs.com/img/ff/icons/${iconName}.png`;
         return { group, iconUrl };
     }
@@ -162,27 +145,30 @@
         container.innerHTML = "";
 
         reports.forEach(report => {
-            report.fights.reverse().forEach(fight => { // 최신 전투가 위로 오게 리포트 내 정렬
+            const validFights = (report.fights || []).filter(f => f.boss !== 0);
+
+            validFights.reverse().forEach(fight => {
                 const korName = bossNameMap[fight.name] || fight.name;
                 const uniqueId = `${report.code}_${fight.id}`;
                 const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
 
-                const partyHtml = (fight.friendlyPlayers || []).slice(0, 8).map(pId => {
+                // 실제 플레이어(Limit Break 제외)만 필터링
+                const partyHtml = (fight.friendlyPlayers || []).map(pId => {
                     const actor = report.masterData.actors.find(a => a.id === pId);
-                    if(!actor) return `<div class="player-item">Unknown</div>`;
+                    // actor가 없거나 type이 "Player"가 아니면(리미트 브레이크 등) 건너뜀
+                    if(!actor || actor.type !== "Player") return null;
                     
                     const isMe = actor.name === saved.name;
                     const { group, iconUrl } = getJobInfo(actor.icon);
-                    const textColor = isMe ? saved.myColor : '';
                     
                     return `
                         <div class="player-item">
-                            <img src="${iconUrl}" class="job-icon" alt="${actor.icon}" onerror="this.style.display='none'">
-                            <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+textColor+'; font-weight:bold;' : ''}">
+                            <img src="${iconUrl}" class="job-icon" onerror="this.style.visibility='hidden'">
+                            <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+saved.myColor+'; font-weight:bold;' : ''}">
                                 ${actor.name}
                             </div>
                         </div>`;
-                }).join('');
+                }).filter(html => html !== null).slice(0, 8).join('');
 
                 const card = document.createElement('div');
                 card.className = `log-card ${fight.kill ? 'is-clear' : 'is-wipe'}`;
@@ -214,7 +200,7 @@
             w: document.getElementById('w-' + id).value,
             m: document.getElementById('m-' + id).value
         }));
-        alert("저장 완료");
+        alert("저장되었습니다.");
     }
 </script>
 </body>
