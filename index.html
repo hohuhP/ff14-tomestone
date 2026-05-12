@@ -8,18 +8,15 @@
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
         .container { width: 100%; max-width: 700px; }
         
-        /* 설정창 고정 */
         .settings-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; width: 100%; }
+        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; width: 100%; box-sizing: border-box; }
         .btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
-        /* 탭 메뉴 */
         .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; }
         .tab-btn { background: #2d3748; color: var(--sub); padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; flex: 1; }
         .tab-btn.active { background: var(--primary); color: white; font-weight: bold; }
 
-        /* 그룹 헤더 및 카드 */
         .group-header { font-size: 13px; font-weight: bold; margin: 25px 0 10px 5px; color: var(--sub); display: flex; align-items: center; gap: 8px; }
         .group-header::after { content: ""; flex: 1; height: 1px; background: var(--border); }
         .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; border-left: 5px solid #444; overflow: hidden; }
@@ -28,7 +25,7 @@
         .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
         
         .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; }
-        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; }
+        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; text-align: center; }
         .job-icon { width: 18px; height: 18px; }
         .job-tank { color: #2d71c1; } .job-healer { color: #467837; } .job-dps { color: #ad413d; }
     </style>
@@ -36,7 +33,6 @@
 <body>
 
 <div class="container">
-    <!-- API 및 닉네임 설정창 (상단 고정) -->
     <div class="settings-card">
         <h3 style="margin-top:0; font-size:15px;">⚙️ FFLogs KR 연동 설정</h3>
         <div class="settings-grid">
@@ -51,10 +47,9 @@
                 <option value="Fenrir">펜리르</option>
             </select>
         </div>
-        <button class="btn-main" onclick="saveSettings()">설정 저장 및 갱신</button>
+        <button class="btn-main" onclick="saveSettings()">설정 저장 및 데이터 갱신</button>
     </div>
 
-    <!-- 탭 구성 -->
     <div class="tabs-container">
         <button class="tab-btn active" onclick="filterTab(this, '절')">절</button>
         <button class="tab-btn" onclick="filterTab(this, '영식')">영식</button>
@@ -66,26 +61,48 @@
 </div>
 
 <script>
-    // ffxiv-datamining-ko 기반 한국어 명칭 매핑 (2026 최신)
-    const bossDB = {
-        // [7.2] 절 레이드
-        "Futures Rewritten (Ultimate)": { name: "절 또 하나의 미래", cat: "절" },
-        // [7.2] 극 토벌전
-        "The Minstrel's Ballad: Enuo": { name: "극 에누오", cat: "극" },
-        // [7.2] 아르카디아 가희 라이트헤비편: 헤비급
-        "The M12": { name: "라이트헤비 4층 (헤비급)", cat: "영식" },
-        "The M11": { name: "라이트헤비 3층 (헤비급)", cat: "영식" },
-        "The M10": { name: "라이트헤비 2층 (헤비급)", cat: "영식" },
-        "The M9": { name: "라이트헤비 1층 (헤비급)", cat: "영식" },
-        // [7.0] 아르카디아 가희 라이트헤비편: 라이트헤비급
-        "The M4": { name: "라이트헤비 4층", cat: "영식" },
-        "The M3": { name: "라이트헤비 3층", cat: "영식" },
-        "The M2": { name: "라이트헤비 2층", cat: "영식" },
-        "The M1": { name: "라이트헤비 1층", cat: "영식" },
-        // 레거시
-        "The Omega Protocol": { name: "절 오메가", cat: "절" },
-        "Dragonsong's Reprise": { name: "절 용시전쟁", cat: "절" }
-    };
+    // 키워드 포함(Includes) 방식으로 변경하여 영어가 노출되는 현상 원천 차단
+    const bossDB = [
+        // 절
+        { key: "Futures Rewritten", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Omega Protocol", name: "절 오메가 검증전", cat: "절" },
+        { key: "Dragonsong", name: "절 용시전쟁", cat: "절" },
+        { key: "Unending Coil", name: "절 바하무트 토벌전", cat: "절" },
+        { key: "Weapon's Refrain", name: "절 알테마 웨폰 파괴작전", cat: "절" },
+        { key: "Epic of Alexander", name: "절 알렉산더 토벌전", cat: "절" },
+        
+        // 라이트헤비: 헤비급 (M9-M12)
+        { key: "M12", name: "라이트헤비 4층 (헤비급)", cat: "영식" },
+        { key: "M11", name: "라이트헤비 3층 (헤비급)", cat: "영식" },
+        { key: "M10", name: "라이트헤비 2층 (헤비급)", cat: "영식" },
+        { key: "M9", name: "라이트헤비 1층 (헤비급)", cat: "영식" },
+        
+        // 라이트헤비: 라이트헤비급 (M1-M4)
+        { key: "M4", name: "라이트헤비 4층", cat: "영식" },
+        { key: "M3", name: "라이트헤비 3층", cat: "영식" },
+        { key: "M2", name: "라이트헤비 2층", cat: "영식" },
+        { key: "M1", name: "라이트헤비 1층", cat: "영식" },
+        
+        // 에덴 재생 (보내주신 스크린샷 참조)
+        { key: "Fatebreaker", name: "에덴의 약속: 재생편 3층", cat: "영식" },
+        { key: "Usurper of Frost", name: "에덴의 약속: 재생편 3층", cat: "영식" },
+
+        // 극 토벌전
+        { key: "Enuo", name: "극 에누오 토벌전", cat: "극" },
+        { key: "Valigarmanda", name: "극 바리가르만다 토벌전", cat: "극" },
+        { key: "Zoraal Ja", name: "극 조라 자 토벌전", cat: "극" },
+        { key: "Everkeep", name: "극 조라 자 토벌전", cat: "극" }
+    ];
+
+    function getFightInfo(engName) {
+        // 영문 이름 안에 키워드가 포함되어 있는지 검사
+        for (let b of bossDB) {
+            if (engName.toLowerCase().includes(b.key.toLowerCase())) {
+                return b;
+            }
+        }
+        return { name: engName, cat: "기타" };
+    }
 
     const jobIcons = {
         Tank: ['Paladin', 'Warrior', 'DarkKnight', 'Gunbreaker'],
@@ -152,13 +169,13 @@
             fights = [];
             result.data.characterData.character.recentReports.data.forEach(r => {
                 r.fights.filter(f => f.encounterID !== 0).forEach(f => {
-                    const db = bossDB[f.name] || { name: f.name, cat: "기타" };
-                    fights.push({ ...f, reportCode: r.code, actors: r.masterData.actors, korName: db.name, category: db.cat });
+                    const info = getFightInfo(f.name);
+                    fights.push({ ...f, reportCode: r.code, actors: r.masterData.actors, korName: info.name, category: info.cat });
                 });
             });
-            render('절');
+            render('영식'); // 기본 탭을 영식으로 설정
         } catch (e) {
-            document.getElementById('main-content').innerHTML = `<div class="card" style="color:var(--wipe)">오류: ${e.message}</div>`;
+            document.getElementById('main-content').innerHTML = `<div class="card" style="color:var(--wipe)">데이터 불러오기 실패: ${e.message}</div>`;
         }
     }
 
@@ -176,18 +193,22 @@
 
         let html = "";
         if(clears.length > 0) html += `<div class="group-header">CLEAR</div>` + clears.map(f => logItem(f)).join('');
-        if(wipes.length > 0) html += `<div class="group-header">WIPE (PROGRESS)</div>` + wipes.map(f => logItem(f)).join('');
+        if(wipes.length > 0) html += `<div class="group-header">WIPE (남은 체력)</div>` + wipes.map(f => logItem(f)).join('');
         
-        container.innerHTML = html || `<div class="card" style="text-align:center; color:var(--sub)">기록이 없습니다.</div>`;
+        container.innerHTML = html || `<div class="card" style="text-align:center; color:var(--sub)">해당 카테고리의 최근 기록이 없습니다.</div>`;
     }
 
     function logItem(f) {
-        const prog = f.kill ? `<span style="color:var(--clear)">✅ CLEAR</span>` : `<span style="color:var(--wipe)">${Math.floor(100 - (f.fightPercentage/100))}%</span>`;
+        // [수정핵심] 100에서 빼는 로직 삭제. API 수치(100단위)를 100으로 나눠서 그대로 표기. 
+        // 예: 2945 -> 29.45 -> Math.floor 적용 시 29% 출력 (이미지상 수치와 동일하게 구현)
+        const wipePercent = Math.floor(f.fightPercentage / 100);
+        const prog = f.kill ? `<span style="color:var(--clear)">✅ CLEAR</span>` : `<span style="color:var(--wipe); font-weight:bold;">${wipePercent}%</span>`;
+        
         const party = (f.friendlyPlayers || []).map(pId => {
             const a = f.actors.find(x => x.id === pId);
-            if(!a || a.name === "Limit Break") return null;
+            if(!a || a.name === "Limit Break" || a.name === "Multiple Players") return null;
             const jobClass = jobIcons.Tank.includes(a.icon) ? 'job-tank' : jobIcons.Healer.includes(a.icon) ? 'job-healer' : 'job-dps';
-            return `<div class="player-item"><img src="https://assets.rpglogs.com/img/ff/icons/${a.icon}.png" class="job-icon"><div class="${jobClass}">${a.name}</div></div>`;
+            return `<div class="player-item"><img src="https://assets.rpglogs.com/img/ff/icons/${a.icon}.png" class="job-icon"><div class="${jobClass}">${a.name.split(' ')[0]}</div></div>`;
         }).filter(x => x).slice(0, 8).join('');
 
         return `
@@ -196,8 +217,8 @@
                 <div style="padding:15px;">
                     <div class="party-grid">${party}</div>
                     <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between;">
-                        <span style="color:var(--sub)">${f.reportCode}</span>
-                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">로그 분석 ↗</a>
+                        <span style="color:var(--sub)">CODE: ${f.reportCode}</span>
+                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">상세 리포트 보기 ↗</a>
                     </div>
                 </div>
             </div>`;
