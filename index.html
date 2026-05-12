@@ -10,10 +10,9 @@
         .container { width: 100%; max-width: 800px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         
-        /* 입력창 디자인 */
         .input-box { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-        input, select { background: #000; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 6px; flex: 1; min-width: 200px; }
-        select { cursor: pointer; }
+        input, select { background: #000; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 6px; flex: 1; min-width: 200px; font-size: 14px; }
+        select { cursor: pointer; height: 45px; } /* 드롭다운 높이 조절 */
         
         button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; }
         button:hover { background: #7c3aed; }
@@ -22,46 +21,41 @@
         .profile-img { width: 100px; height: 100px; border-radius: 10px; background: #333; object-fit: cover; border: 2px solid var(--border); }
         
         .raid-item { margin-top: 15px; padding: 15px; background: #000; border-radius: 8px; border: 1px solid #333; }
-        .progress-bar { height: 10px; background: #333; border-radius: 5px; margin: 10px 0; overflow: hidden; }
-        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 1s; }
-        
         .log-detail { font-size: 14px; color: var(--sub); line-height: 1.6; border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
         a { color: var(--primary); text-decoration: none; }
-        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 1. API 설정창 -->
     <div class="card" id="setup">
         <h3 style="margin-top:0;">🔗 FFLogs 실시간 연동 (한국 서버)</h3>
-        <p style="font-size:13px; color:var(--sub);">FFLogs V2 API Client 정보를 입력해주세요.</p>
         
         <div class="input-box">
-            <input type="text" id="client-id" placeholder="Client ID">
-            <input type="password" id="client-secret" placeholder="Client Secret">
+            <input type="text" id="client-id" placeholder="FFLogs Client ID">
+            <input type="password" id="client-secret" placeholder="FFLogs Client Secret">
         </div>
         
         <div class="input-box">
             <input type="text" id="char-name" placeholder="캐릭터 이름">
-            <!-- 서버 선택 드롭다운 -->
+            
+            <!-- 서버 선택 드롭다운 (한국어 표시) -->
             <select id="char-server">
-                <option value="">서버 선택</option>
-                <option value="Carbuncle">카벙클 (Carbuncle)</option>
-                <option value="Chocobo">초코보 (Chocobo)</option>
-                <option value="Moogle">모그리 (Moogle)</option>
-                <option value="Tonberry">톤베리 (Tonberry)</option>
-                <option value="Fenrir">펜리르 (Fenrir)</option>
+                <option value="" disabled selected>서버를 선택하세요</option>
+                <option value="Carbuncle">카벙클</option>
+                <option value="Chocobo">초코보</option>
+                <option value="Moogle">모그리</option>
+                <option value="Tonberry">톤베리</option>
+                <option value="Fenrir">펜리르</option>
             </select>
         </div>
-        <button onclick="fetchData()">데이터 불러오기 시작</button>
+        <button onclick="fetchData()">내 레이드 데이터 가져오기</button>
     </div>
 
-    <!-- 2. 캐릭터 프로필 섹션 -->
+    <!-- 결과 화면 (데이터 성공 시에만 보임) -->
     <div class="card" style="display: none;" id="profile-section">
         <div class="profile-header">
-            <img id="p-img" src="https://via.placeholder.com/100" class="profile-img" onclick="changePImg()" title="클릭하여 이미지 변경">
+            <img id="p-img" src="https://via.placeholder.com/100" class="profile-img" onclick="changePImg()">
             <div>
                 <h2 id="p-name" style="margin:0;">이름</h2>
                 <p id="p-server" style="margin:5px 0 0 0; color:var(--sub);">서버 정보</p>
@@ -69,7 +63,6 @@
         </div>
     </div>
 
-    <!-- 3. 결과 리스트 -->
     <div id="raid-section" style="display: none;">
         <div class="card">
             <h3>⚔️ 최근 레이드 리포트</h3>
@@ -83,39 +76,39 @@
         const clientId = document.getElementById('client-id').value.trim();
         const clientSecret = document.getElementById('client-secret').value.trim();
         const name = document.getElementById('char-name').value.trim();
-        const server = document.getElementById('char-server').value;
+        const serverSlug = document.getElementById('char-server').value;
+        const serverKR = document.getElementById('char-server').options[document.getElementById('char-server').selectedIndex].text;
 
-        if(!clientId || !clientSecret || !name || !server) {
-            return alert("모든 빈칸을 채우고 서버를 선택해주세요!");
+        if(!clientId || !clientSecret || !name || !serverSlug) {
+            return alert("API 키와 캐릭터 이름, 서버 선택을 모두 확인해주세요!");
         }
 
         const btn = document.querySelector('button');
-        btn.innerText = "데이터 찾는 중...";
+        btn.innerText = "데이터 통신 중...";
         btn.disabled = true;
 
         try {
-            // 1. 토큰 발급
+            // 1. 액세스 토큰 획득
             const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}`
             });
             
-            if(!tokenRes.ok) throw new Error("API 키가 올바르지 않습니다. (ID/Secret 확인)");
+            if(!tokenRes.ok) throw new Error("API 인증 실패! ID와 Secret을 다시 확인하세요.");
             const tokenData = await tokenRes.json();
             const token = tokenData.access_token;
 
-            // 2. 캐릭터 쿼리 (한국 서버 고정)
+            // 2. FFLogs 데이터 요청
             const query = `
             {
               characterData {
-                character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") {
-                  recentReports(limit: 8) {
+                character(name: "${name}", serverSlug: "${serverSlug}", serverRegion: "KR") {
+                  recentReports(limit: 10) {
                     data {
                       code
                       title
                       masterData { actors(type: "Player") { name subType } }
-                      fights(kill: true) { lastPhaseAsText }
                     }
                   }
                 }
@@ -131,22 +124,20 @@
             const result = await res.json();
             const char = result.data.characterData.character;
 
-            if(!char) throw new Error("해당 서버에서 캐릭터를 찾을 수 없습니다. 이름과 서버를 다시 확인하세요.");
+            if(!char) throw new Error(`${serverKR} 서버에서 '${name}' 캐릭터를 찾을 수 없습니다.`);
 
-            // 3. UI 업데이트
+            // 3. UI 그리기
             document.getElementById('setup').style.display = 'none';
             document.getElementById('profile-section').style.display = 'block';
             document.getElementById('raid-section').style.display = 'block';
             
             document.getElementById('p-name').innerText = name;
-            document.getElementById('p-server').innerText = server + " 서버";
+            document.getElementById('p-server').innerText = serverKR + " 서버";
 
             const list = document.getElementById('raid-list');
-            list.innerHTML = "";
-            
-            if(char.recentReports.data.length === 0) {
-                list.innerHTML = "<p>최근 기록된 공개 로그가 없습니다.</p>";
-            }
+            list.innerHTML = char.recentReports.data.length === 0 
+                ? "<p>최근 기록된 공개 로그가 없습니다.</p>" 
+                : "";
 
             char.recentReports.data.forEach(report => {
                 const party = report.masterData.actors.map(a => a.name).join(", ");
@@ -154,8 +145,8 @@
                     <div class="raid-item">
                         <strong>${report.title}</strong>
                         <div class="log-detail">
-                            <strong>파티원:</strong> ${party.substring(0, 50)}...<br>
-                            <strong>로그 확인:</strong> <a href="https://ko.fflogs.com/reports/${report.code}" target="_blank">FFLogs 리포트 열기 ↗</a>
+                            <strong>파티원:</strong> ${party.substring(0, 60)}...<br>
+                            <a href="https://ko.fflogs.com/reports/${report.code}" target="_blank">FFLogs 원본 보기 ↗</a>
                         </div>
                     </div>
                 `;
@@ -163,13 +154,13 @@
 
         } catch (e) {
             alert(e.message);
-            btn.innerText = "데이터 불러오기 시작";
+            btn.innerText = "내 레이드 데이터 가져오기";
             btn.disabled = false;
         }
     }
 
     function changePImg() {
-        const url = prompt("이미지 주소(URL)를 입력하세요.");
+        const url = prompt("표시할 캐릭터 이미지 URL을 입력하세요.");
         if(url) document.getElementById('p-img').src = url;
     }
 </script>
