@@ -1,6 +1,96 @@
-<!-- 이전 스타일 시트는 동일하게 유지되므로 스크립트 로직의 핵심 변경 부분만 반영합니다 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFLogs 8인 전용 리포트 매니저</title>
+    <style>
+        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { width: 100%; max-width: 700px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        
+        .raid-group-header { border-bottom: 2px solid var(--primary); margin: 30px 0 15px 0; padding-bottom: 8px; font-size: 18px; font-weight: bold; color: var(--primary); }
+        
+        .log-card { background: #000; border-radius: 10px; border: 1px solid #333; margin-bottom: 12px; overflow: hidden; }
+        .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; }
+        
+        .status-badge { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; min-width: 60px; text-align: center; }
+        .status-clear { background: var(--clear); color: white; }
+        .status-wipe { background: var(--wipe); color: white; }
+        
+        .log-body { padding: 15px; }
+        .party-summary { font-size: 13px; color: var(--sub); margin-bottom: 12px; }
+
+        .gear-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        input { background: #111; border: 1px solid var(--border); color: white; padding: 8px 12px; border-radius: 6px; font-size: 13px; flex: 1; }
+        
+        button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-save { background: #2d3748; color: var(--text); transition: 0.2s; }
+        .btn-save:hover { background: var(--primary); }
+        
+        .btn-link { color: var(--primary); text-decoration: none; font-size: 12px; }
+        .btn-link:hover { text-decoration: underline; }
+
+        .tab-menu { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: none; border: 1px solid var(--border); color: var(--sub); cursor: pointer; padding: 8px 16px; border-radius: 6px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tab-menu">
+        <button class="tab-btn active" onclick="location.reload()">데이터 동기화</button>
+        <button class="tab-btn" onclick="toggleSettings()">설정 변경</button>
+    </div>
+
+    <div id="section-settings" class="card" style="display: none;">
+        <h3>⚙️ FFLogs 설정</h3>
+        <input type="text" id="client-id" placeholder="Client ID" style="width:100%; margin-bottom:10px;">
+        <input type="password" id="client-secret" placeholder="Client Secret" style="width:100%; margin-bottom:10px;">
+        <input type="text" id="char-name" placeholder="캐릭터 이름" style="width:100%; margin-bottom:10px;">
+        <select id="char-server" style="background:#000; color:white; width:100%; padding:10px; margin-bottom:10px; border-radius:6px; border:1px solid var(--border);">
+            <option value="Carbuncle">카벙클</option>
+            <option value="Chocobo">초코보</option>
+            <option value="Moogle">모그리</option>
+            <option value="Tonberry">톤베리</option>
+            <option value="Fenrir">펜리르</option>
+        </select>
+        <button style="background:var(--primary); color:white; width:100%;" onclick="saveSettings()">저장 후 적용</button>
+    </div>
+
+    <div id="main-content">
+        <p style="text-align:center; color:var(--sub); margin-top:50px;">로그를 분석하고 있습니다...</p>
+    </div>
+</div>
+
 <script>
-    // ... (설정 및 토큰 획득 부분은 동일)
+    window.onload = function() {
+        const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
+        if(!saved) { 
+            document.getElementById('section-settings').style.display = 'block';
+            document.getElementById('main-content').innerHTML = '';
+        } else { 
+            fetchData(saved); 
+        }
+    };
+
+    function toggleSettings() {
+        const s = document.getElementById('section-settings');
+        s.style.display = s.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function saveSettings() {
+        const cfg = {
+            id: document.getElementById('client-id').value.trim(),
+            secret: document.getElementById('client-secret').value.trim(),
+            name: document.getElementById('char-name').value.trim(),
+            server: document.getElementById('char-server').value
+        };
+        localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
+        location.reload();
+    }
 
     async function fetchData(saved) {
         try {
@@ -12,7 +102,6 @@
             const tokenData = await tokenRes.json();
             const token = tokenData.access_token;
 
-            // 쿼리 시 인원을 체크하기 위해 masterData의 actors를 가져옵니다.
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
@@ -35,26 +124,25 @@
             });
             const result = await res.json();
             
-            // 전체 로그 중 '8인 로그'만 필터링
             const allReports = result.data.characterData.character.recentReports.data;
-            const eightManReports = allReports.filter(r => r.masterData.actors.length === 8);
+            // 인원이 정확히 8명인 리포트만 필터링
+            const eightManReports = allReports.filter(r => r.masterData && r.masterData.actors && r.masterData.actors.length === 8);
 
-            renderLogs(eightManReports, saved.name);
+            renderLogs(eightManReports);
         } catch (e) {
-            document.getElementById('main-content').innerHTML = `<p style='color:red;'>오류: ${e.message}</p>`;
+            document.getElementById('main-content').innerHTML = `<p style='color:red; text-align:center;'>오류: API 키를 확인하거나 잠시 후 다시 시도하세요.</p>`;
         }
     }
 
-    function renderLogs(reports, myName) {
+    function renderLogs(reports) {
         const container = document.getElementById('main-content');
         container.innerHTML = "";
 
         if (reports.length === 0) {
-            container.innerHTML = "<p style='text-align:center; color:var(--sub);'>최근 8인 레이드 기록이 없습니다.</p>";
+            container.innerHTML = "<p style='text-align:center; color:var(--sub);'>조건에 맞는 8인 레이드 기록이 없습니다.</p>";
             return;
         }
 
-        // 레이드 제목별로 그룹은 지어주되, 내부의 각 로그는 무조건 별개 카드로 출력
         const grouped = {};
         reports.forEach(r => {
             if (!grouped[r.title]) grouped[r.title] = [];
@@ -66,11 +154,9 @@
             groupSection.innerHTML = `<div class="raid-group-header">${title}</div>`;
             
             grouped[title].forEach(report => {
-                const kills = report.fights.filter(f => f.kill).length;
                 const wipes = report.fights.filter(f => !f.kill).length;
-                const isClear = kills > 0;
+                const isClear = report.fights.some(f => f.kill);
                 const reportCode = report.code;
-                
                 const savedData = JSON.parse(localStorage.getItem('gear_' + reportCode)) || {w:'', m:''};
 
                 groupSection.innerHTML += `
@@ -79,18 +165,18 @@
                             <span class="status-badge ${isClear ? 'status-clear' : 'status-wipe'}">
                                 ${isClear ? '클리어' : '리트'}
                             </span>
-                            <span style="font-size:12px; color:var(--sub); font-family:monospace;">ID: ${reportCode}</span>
+                            <span style="font-size:11px; color:var(--sub); font-family:monospace;">${reportCode}</span>
                             <span style="font-size:12px; font-weight:bold; color:var(--sub);">${wipes}회 트라이</span>
                         </div>
                         <div class="log-body">
-                            <div class="party-summary">👤 <b>8인 파티</b> 리포트</div>
+                            <div class="party-summary">👤 <b>8인 전용 리포트</b></div>
                             <div class="gear-row">
-                                <input type="text" id="w-${reportCode}" value="${savedData.w}" placeholder="무기 정보">
-                                <input type="text" id="m-${reportCode}" value="${savedData.m}" placeholder="세팅 메모">
+                                <input type="text" id="w-${reportCode}" value="${savedData.w}" placeholder="사용한 무기 명칭">
+                                <input type="text" id="m-${reportCode}" value="${savedData.m}" placeholder="세팅/피드백 메모">
                             </div>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <a href="https://ko.fflogs.com/reports/${reportCode}" target="_blank" class="btn-link">리포트 상세보기 ↗</a>
-                                <button class="btn-save" onclick="saveGear('${reportCode}')">저장</button>
+                                <a href="https://ko.fflogs.com/reports/${reportCode}" target="_blank" class="btn-link">FFLogs 상세 보기 ↗</a>
+                                <button class="btn-save" onclick="saveGear('${reportCode}')">저장하기</button>
                             </div>
                         </div>
                     </div>
@@ -99,4 +185,15 @@
             container.appendChild(groupSection);
         }
     }
+
+    function saveGear(code) {
+        localStorage.setItem('gear_' + code, JSON.stringify({
+            w: document.getElementById('w-' + code).value,
+            m: document.getElementById('m-' + code).value
+        }));
+        alert("성공적으로 저장되었습니다.");
+    }
 </script>
+
+</body>
+</html>
