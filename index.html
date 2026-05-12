@@ -8,12 +8,12 @@
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
         .container { width: 100%; max-width: 700px; }
         .settings-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; width: 100%; box-sizing: border-box; }
-        .btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab-btn { background: #2d3748; color: var(--sub); padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; flex: 1; }
-        .tab-btn.active { background: var(--primary); color: white; font-weight: bold; }
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box; outline: none; }
+        input:focus, select:focus { border-color: var(--primary); }
+        .btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .filter-container { margin-bottom: 20px; }
+        .filter-label { font-size: 12px; color: var(--sub); margin-bottom: 8px; display: block; margin-left: 5px; }
         .group-header { font-size: 13px; font-weight: bold; margin: 25px 0 10px 5px; color: var(--sub); display: flex; align-items: center; gap: 8px; }
         .group-header::after { content: ""; flex: 1; height: 1px; background: var(--border); }
         .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; border-left: 5px solid #444; overflow: hidden; }
@@ -30,11 +30,10 @@
 
 <div class="container">
     <div class="settings-card">
-        <h3 style="margin-top:0; font-size:15px;">⚙️ FFLogs 연동 (헤비급 영식)</h3>
         <div class="settings-grid">
-            <input type="text" id="client-id" placeholder="Client ID">
+            <input type="text" id="client-id" placeholder="FFLogs Client ID">
             <input type="password" id="client-secret" placeholder="Client Secret">
-            <input type="text" id="char-name" placeholder="캐릭터명">
+            <input type="text" id="char-name" placeholder="캐릭터 이름">
             <select id="char-server">
                 <option value="Carbuncle">카벙클</option>
                 <option value="Chocobo">초코보</option>
@@ -43,37 +42,53 @@
                 <option value="Fenrir">펜리르</option>
             </select>
         </div>
-        <button class="btn-main" onclick="saveSettings()">데이터 갱신</button>
+        <button class="btn-main" onclick="saveSettings()">데이터 갱신 및 저장</button>
     </div>
 
-    <div class="tabs-container">
-        <button class="tab-btn active" onclick="filterTab(this, '영식')">영식</button>
-        <button class="tab-btn" onclick="filterTab(this, '절')">절</button>
-        <button class="tab-btn" onclick="filterTab(this, '극')">극</button>
-        <button class="tab-btn" onclick="filterTab(this, '기타')">기타</button>
+    <div class="filter-container">
+        <label class="filter-label">콘텐츠 카테고리 선택</label>
+        <select id="category-select" onchange="render(this.value)">
+            <option value="절">절 레이드 (Ultimate)</option>
+            <option value="영식">영웅 난이도 (Savage)</option>
+            <option value="극">극 토벌전 (Extreme)</option>
+            <option value="기타">기타 콘텐츠 (Etc)</option>
+        </select>
     </div>
 
     <div id="main-content"></div>
 </div>
 
 <script>
-    // [보정] 헤비급 영식 보스만 유지 및 한국어 명칭 매핑
     const bossDB = [
-        // 절 레이드 (절미래)
-        { key: "Fatebreaker", name: "자취를 감춘 낙인 (절)", cat: "절" },
-        { key: "Usurper", name: "얼음의 무녀 (절)", cat: "절" },
-        { key: "Eden Prime", name: "에덴 프라임 (절)", cat: "절" },
-        { key: "Oracle", name: "어둠의 무녀 (절)", cat: "절" },
+        // 절 레이드 (Ultimate)
+        { key: "Fatebreaker", name: "또 하나의 미래", cat: "절" },
+        { key: "Usurper", name: "또 하나의 미래", cat: "절" },
+        { key: "Eden Prime", name: "또 하나의 미래", cat: "절" },
+        { key: "Oracle", name: "또 하나의 미래", cat: "절" },
+        { key: "Final Omega", name: "오메가 검증전", cat: "절" },
+        { key: "Alpha", name: "오메가 검증전", cat: "절" },
+        { key: "Dragon-king", name: "용시전쟁", cat: "절" },
+        { key: "King Thordan", name: "용시전쟁", cat: "절" },
+        { key: "Perfect Alexander", name: "알렉산더", cat: "절" },
+        { key: "Alexander Prime", name: "알렉산더", cat: "절" },
+        { key: "Ultima Weapon", name: "알테마 웨폰", cat: "절" },
+        { key: "Bahamut Prime", name: "바하무트", cat: "절" },
 
-        // 아르카디아 선수권: 헤비급 (라이트헤비급 제외 완료)
-        { key: "Lindwurm", name: "린드블룸 (헤비급 4)", cat: "영식" },
-        { key: "The Tyrant", name: "더 타이런트 (헤비급 3)", cat: "영식" },
-        { key: "Red Hot", name: "레드 핫 (헤비급 2)", cat: "영식" },
-        { key: "Deep Blue", name: "딥 블루 (헤비급 2)", cat: "영식" },
-        { key: "Vamp Fatale", name: "뱀프 파탈 (헤비급 1)", cat: "영식" },
+        // 영웅 난이도 (Savage)
+        { key: "Lindwurm", name: "린드블룸", cat: "영식" },
+        { key: "The Tyrant", name: "더 타이런트", cat: "영식" },
+        { key: "Red Hot", name: "레드 핫", cat: "영식" },
+        { key: "Deep Blue", name: "딥 블루", cat: "영식" },
+        { key: "Vamp Fatale", name: "뱀프 파탈", cat: "영식" },
 
-        // 극 토벌전
-        { key: "Enuo", name: "극 에누오 토벌전", cat: "극" }
+        // 극 토벌전 (Extreme)
+        { key: "Eternal Darkness", name: "영원한 어둠", cat: "극" },
+        { key: "Valigarmanda", name: "발리가르만다", cat: "극" },
+        { key: "Enuo", name: "에누오", cat: "극" },
+        { key: "Zoraal Ja", name: "조라자", cat: "극" },
+        { key: "Eternal Queen", name: "이터널 퀸", cat: "극" },
+        { key: "Doomtrain", name: "글라시아 라볼라스", cat: "극" },
+        { key: "Jelenia", name: "젤레니아", cat: "극" }
     ];
 
     const jobIcons = {
@@ -118,7 +133,7 @@
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
-                        recentReports(limit: 25) { 
+                        recentReports(limit: 50) { 
                             data {
                                 code
                                 masterData { actors(type: "Player") { id name icon } }
@@ -136,10 +151,19 @@
             });
 
             const result = await res.json();
+            const character = result.data.characterData.character;
             fights = [];
-            result.data.characterData.character.recentReports.data.forEach(r => {
-                r.fights.filter(f => f.encounterID !== 0).forEach(f => {
-                    let info = { name: f.name, cat: "기타" };
+
+            character.recentReports.data.forEach(r => {
+                const myActor = r.masterData.actors.find(a => a.name === saved.name);
+                if(!myActor) return;
+
+                r.fights.forEach(f => {
+                    if (f.name.toLowerCase().includes('trash')) return;
+                    if (!f.friendlyPlayers.includes(myActor.id)) return;
+
+                    let info = { name: f.name.replace(/\(.*\)|절 |극 /g, "").trim(), cat: "기타" };
+                    
                     for (const b of bossDB) {
                         if (f.name.toLowerCase().includes(b.key.toLowerCase())) {
                             info = b;
@@ -149,14 +173,8 @@
                     fights.push({ ...f, reportCode: r.code, actors: r.masterData.actors, korName: info.name, category: info.cat });
                 });
             });
-            render('영식');
+            render('절');
         } catch (e) { console.error(e); }
-    }
-
-    function filterTab(btn, cat) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        render(cat);
     }
 
     function render(cat) {
@@ -166,23 +184,19 @@
         const wipes = list.filter(f => !f.kill);
 
         let html = "";
-        if(clears.length > 0) html += `<div class="group-header">CLEAR</div>` + clears.map(f => logItem(f)).join('');
-        if(wipes.length > 0) html += `<div class="group-header">WIPE</div>` + wipes.map(f => logItem(f)).join('');
+        if(clears.length > 0) html += `<div class="group-header">SUCCESS (클리어)</div>` + clears.map(f => logItem(f)).join('');
+        if(wipes.length > 0) html += `<div class="group-header">FAILED (전멸)</div>` + wipes.map(f => logItem(f)).join('');
         
-        container.innerHTML = html || `<div style="text-align:center; padding:50px; color:var(--sub)">기록이 없습니다.</div>`;
+        container.innerHTML = html || `<div style="text-align:center; padding:60px; color:var(--sub);">해당 카테고리에 참여 기록이 없습니다.</div>`;
     }
 
     function logItem(f) {
-        // [WIPE % 로직 수정] 
-        // fightPercentage가 2950이면 29.5%, 이를 소수점 첫째자리까지 표기
         let wipePercent = (f.fightPercentage / 100).toFixed(1);
-        
-        // 0.0%인데 킬이 아니라면 아주 적은 체력이 남은 것이므로 0.1%로 보정
         if (!f.kill && wipePercent === "0.0") wipePercent = "0.1";
 
         const prog = f.kill 
-            ? `<span style="color:var(--clear); font-weight:bold;">✅ CLEAR</span>` 
-            : `<span style="color:var(--wipe); font-weight:bold;">WIPE ${wipePercent}%</span>`;
+            ? `<span style="color:var(--clear); font-weight:bold;">CLEAR</span>` 
+            : `<span style="color:var(--wipe); font-weight:bold;">${wipePercent}%</span>`;
         
         const party = (f.friendlyPlayers || []).map(pId => {
             const a = f.actors.find(x => x.id === pId);
@@ -193,12 +207,15 @@
 
         return `
             <div class="log-card ${f.kill ? 'is-clear' : 'is-wipe'}">
-                <div class="log-header"><b>${f.korName}</b> <span>${prog}</span></div>
+                <div class="log-header">
+                    <b style="font-size:14px;">${f.korName}</b>
+                    <span style="font-size:13px;">${prog}</span>
+                </div>
                 <div style="padding:15px;">
                     <div class="party-grid">${party}</div>
-                    <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between; color:var(--sub);">
-                        <span>${f.reportCode}</span>
-                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">리포트 보기 ↗</a>
+                    <div style="margin-top:12px; font-size:11px; display:flex; justify-content:space-between; color:var(--sub);">
+                        <span>CODE: ${f.reportCode}</span>
+                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none; font-weight:bold;">LOGS ↗</a>
                     </div>
                 </div>
             </div>`;
