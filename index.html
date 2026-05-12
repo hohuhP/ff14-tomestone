@@ -24,6 +24,7 @@
         .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; text-align: center; }
         .job-icon { width: 18px; height: 18px; }
         .job-tank { color: #2d71c1; } .job-healer { color: #467837; } .job-dps { color: #ad413d; }
+        .status-msg { text-align: center; padding: 60px; color: var(--sub); font-size: 14px; }
     </style>
 </head>
 <body>
@@ -42,7 +43,7 @@
                 <option value="Fenrir">펜리르</option>
             </select>
         </div>
-        <button class="btn-main" onclick="saveSettings()">데이터 갱신 및 저장</button>
+        <button class="btn-main" id="fetch-btn" onclick="saveSettings()">데이터 갱신 및 저장</button>
     </div>
 
     <div class="filter-container">
@@ -60,7 +61,6 @@
 
 <script>
     const bossDB = [
-        // 절 레이드 (명칭 변경 반영)
         { key: "Fatebreaker", name: "또 하나의 미래", cat: "절" },
         { key: "Usurper", name: "또 하나의 미래", cat: "절" },
         { key: "Eden Prime", name: "또 하나의 미래", cat: "절" },
@@ -73,15 +73,11 @@
         { key: "Alexander Prime", name: "알렉산더", cat: "절" },
         { key: "Ultima Weapon", name: "알테마 웨폰", cat: "절" },
         { key: "Bahamut Prime", name: "바하무트", cat: "절" },
-
-        // 영웅 난이도
         { key: "Lindwurm", name: "린드블룸", cat: "영식" },
         { key: "The Tyrant", name: "더 타이런트", cat: "영식" },
         { key: "Red Hot", name: "레드 핫", cat: "영식" },
         { key: "Deep Blue", name: "딥 블루", cat: "영식" },
         { key: "Vamp Fatale", name: "뱀프 파탈", cat: "영식" },
-
-        // 극 토벌전
         { key: "Eternal Darkness", name: "영원한 어둠", cat: "극" },
         { key: "Valigarmanda", name: "발리가르만다", cat: "극" },
         { key: "Enuo", name: "에누오", cat: "극" },
@@ -106,7 +102,7 @@
             document.getElementById('client-secret').value = saved.secret || '';
             document.getElementById('char-name').value = saved.name || '';
             document.getElementById('char-server').value = saved.server || 'Carbuncle';
-            fetchData(saved);
+            if(saved.id && saved.secret && saved.name) fetchData(saved);
         }
     };
 
@@ -117,17 +113,25 @@
             name: document.getElementById('char-name').value.trim(),
             server: document.getElementById('char-server').value
         };
+        if(!cfg.id || !cfg.secret || !cfg.name) { alert("모든 정보를 입력해주세요."); return; }
         localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
-        location.reload();
+        fetchData(cfg);
     }
 
     async function fetchData(saved) {
+        const content = document.getElementById('main-content');
+        const btn = document.getElementById('fetch-btn');
+        content.innerHTML = `<div class="status-msg">FFLogs에서 데이터를 불러오는 중...</div>`;
+        btn.disabled = true;
+
         try {
             const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
             });
+
+            if(!tokenRes.ok) throw new Error("AUTH_FAILED");
             const { access_token } = await tokenRes.json();
 
             const query = `query {
@@ -151,17 +155,19 @@
             });
 
             const result = await res.json();
+            if (result.errors) throw new Error("QUERY_ERROR");
+
             const character = result.data.characterData.character;
-            
             if (!character) {
-                document.getElementById('main-content').innerHTML = `<div style="text-align:center; padding:60px; color:var(--wipe);">캐릭터를 찾을 수 없습니다.</div>`;
+                content.innerHTML = `<div class="status-msg" style="color:var(--wipe);">캐릭터를 찾을 수 없습니다. 이름과 서버를 확인하세요.</div>`;
                 return;
             }
 
             fights = [];
+            const searchName = saved.name.replace(/\s/g, "").toLowerCase();
 
             character.recentReports.data.forEach(r => {
-                const myActor = r.masterData.actors.find(a => a.name.replace(/\s/g, "") === saved.name.replace(/\s/g, ""));
+                const myActor = r.masterData.actors.find(a => a.name.replace(/\s/g, "").toLowerCase() === searchName);
                 if(!myActor) return;
 
                 r.fights.forEach(f => {
@@ -169,7 +175,6 @@
                     if (!f.friendlyPlayers.includes(myActor.id)) return;
 
                     let info = { name: f.name.replace(/\(.*\)|절 |극 /g, "").trim(), cat: "기타" };
-                    
                     for (const b of bossDB) {
                         if (f.name.toLowerCase().includes(b.key.toLowerCase())) {
                             info = b;
@@ -179,10 +184,13 @@
                     fights.push({ ...f, reportCode: r.code, actors: r.masterData.actors, korName: info.name, category: info.cat });
                 });
             });
+
             render(document.getElementById('category-select').value);
-        } catch (e) { 
+        } catch (e) {
             console.error(e);
-            document.getElementById('main-content').innerHTML = `<div style="text-align:center; padding:60px; color:var(--wipe);">데이터 로드 실패 (API 키를 확인하세요)</div>`;
+            content.innerHTML = `<div class="status-msg" style="color:var(--wipe);">네트워크 오류 또는 API 한도 초과입니다.<br>잠시 후 다시 시도하거나 ID/Secret을 확인하세요.</div>`;
+        } finally {
+            btn.disabled = false;
         }
     }
 
@@ -196,12 +204,12 @@
         if(clears.length > 0) html += `<div class="group-header">SUCCESS</div>` + clears.map(f => logItem(f)).join('');
         if(wipes.length > 0) html += `<div class="group-header">FAILED</div>` + wipes.map(f => logItem(f)).join('');
         
-        container.innerHTML = html || `<div style="text-align:center; padding:60px; color:var(--sub);">최근 100개 리포트 중 해당 카테고리 기록이 없습니다.</div>`;
+        container.innerHTML = html || `<div class="status-msg">해당 카테고리에 기록이 없습니다.</div>`;
     }
 
     function logItem(f) {
         let wipePercent = (f.fightPercentage / 100).toFixed(1);
-        if (!f.kill && wipePercent === "0.0") wipePercent = "0.1";
+        if (!f.kill && (wipePercent === "0.0" || wipePercent === "0")) wipePercent = "0.1";
 
         const prog = f.kill 
             ? `<span style="color:var(--clear); font-weight:bold;">CLEAR</span>` 
