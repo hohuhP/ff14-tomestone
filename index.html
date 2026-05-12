@@ -1,103 +1,170 @@
-async function fetchData(saved) {
-    try {
-        const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
-        });
-        const tokenData = await tokenRes.json();
-        const token = tokenData.access_token;
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFLogs 전투별 리포트</title>
+    <style>
+        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { width: 100%; max-width: 700px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        
+        .raid-group-header { border-bottom: 2px solid var(--primary); margin: 30px 0 15px 0; padding-bottom: 8px; font-size: 18px; font-weight: bold; color: var(--primary); }
+        
+        .log-card { background: #000; border-radius: 10px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; }
+        .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
+        
+        .status-badge { padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .status-clear { background: var(--clear); color: white; }
+        .status-wipe { background: var(--wipe); color: white; }
+        
+        .log-body { padding: 15px; }
+        
+        .party-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; background: #0a0a0a; padding: 10px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #222; }
+        .player-name { font-size: 12px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .player-name.me { color: var(--primary); font-weight: bold; }
 
-        // 쿼리 수정: 각 전투(fight)의 참여자(fights -> participants) 정보를 직접 가져옵니다.
-        const query = `query {
-            characterData {
-                character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
-                    recentReports(limit: 100) { 
-                        data {
-                            code
-                            title
-                            masterData { actors(type: "Player") { id name } }
-                            fights { 
-                                id
-                                kill 
-                                name
-                                friendlyPlayers /* 이 전투에 참여한 플레이어 ID 리스트 */
+        .gear-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        input { background: #111; border: 1px solid var(--border); color: white; padding: 8px 12px; border-radius: 6px; font-size: 13px; flex: 1; }
+        
+        button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-save { background: #2d3748; color: var(--text); }
+        .btn-save:hover { background: var(--primary); }
+        .btn-link { color: var(--primary); text-decoration: none; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="main-content">
+        <p style="text-align:center; color:var(--sub); margin-top:50px;">전투 데이터를 분석하고 있습니다...</p>
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
+        if(!saved) {
+            document.getElementById('main-content').innerHTML = "<p style='text-align:center;'>설정 정보가 없습니다.</p>";
+        } else {
+            fetchData(saved);
+        }
+    };
+
+    async function fetchData(saved) {
+        try {
+            const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
+            });
+            const tokenData = await tokenRes.json();
+            const token = tokenData.access_token;
+
+            const query = `query {
+                characterData {
+                    character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
+                        recentReports(limit: 100) { 
+                            data {
+                                code
+                                title
+                                masterData { actors(type: "Player") { id name } }
+                                fights { 
+                                    id
+                                    kill 
+                                    name
+                                    friendlyPlayers
+                                }
                             }
                         }
                     }
                 }
-            }
-        }`;
+            }`;
 
-        const res = await fetch('https://www.fflogs.com/api/v2/client', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
-        });
-        const result = await res.json();
-        
-        const allReports = result.data.characterData.character.recentReports.data;
-        const processedFights = [];
-
-        allReports.forEach(report => {
-            report.fights.forEach(fight => {
-                // 핵심: 리포트 전체 인원이 아니라, 해당 '전투'에 참여한 인원이 8명인지 확인
-                if (fight.friendlyPlayers && fight.friendlyPlayers.length === 8) {
-                    // 참여자 ID를 이름으로 변환
-                    const partyNames = fight.friendlyPlayers.map(playerId => {
-                        const actor = report.masterData.actors.find(a => a.id === playerId);
-                        return actor ? actor.name : "Unknown";
-                    });
-
-                    processedFights.push({
-                        reportCode: report.code,
-                        title: report.title,
-                        fight: fight,
-                        party: partyNames
-                    });
-                }
+            const res = await fetch('https://www.fflogs.com/api/v2/client', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
             });
-        });
+            const result = await res.json();
+            
+            if (!result.data.characterData.character) {
+                throw new Error("캐릭터를 찾을 수 없습니다.");
+            }
 
-        renderFights(processedFights, saved.name);
-    } catch (e) {
-        console.error(e);
-        document.getElementById('main-content').innerHTML = `<p style='color:red;'>데이터 로딩 실패</p>`;
+            const allReports = result.data.characterData.character.recentReports.data;
+            const processedFights = [];
+
+            allReports.forEach(report => {
+                if (!report.fights) return;
+                report.fights.forEach(fight => {
+                    // 전투 참여 인원이 8명인 경우만 필터링
+                    if (fight.friendlyPlayers && fight.friendlyPlayers.length === 8) {
+                        const partyNames = fight.friendlyPlayers.map(playerId => {
+                            const actor = report.masterData.actors.find(a => a.id === playerId);
+                            return actor ? actor.name : "Unknown";
+                        });
+
+                        processedFights.push({
+                            reportCode: report.code,
+                            title: report.title,
+                            fight: fight,
+                            party: partyNames
+                        });
+                    }
+                });
+            });
+
+            renderFights(processedFights, saved.name);
+        } catch (e) {
+            console.error(e);
+            document.getElementById('main-content').innerHTML = `<p style='color:red; text-align:center;'>오류: ${e.message}</p>`;
+        }
     }
-}
 
-function renderFights(fights, myName) {
-    const container = document.getElementById('main-content');
-    container.innerHTML = fights.length === 0 ? "<p style='text-align:center; color:var(--sub);'>최근 100개 리포트 중 8인 전투 기록을 찾지 못했습니다.</p>" : "";
+    function renderFights(fights, myName) {
+        const container = document.getElementById('main-content');
+        container.innerHTML = fights.length === 0 ? "<p style='text-align:center; color:var(--sub);'>조건에 맞는 8인 전투 기록이 없습니다.</p>" : "";
 
-    fights.forEach(item => {
-        const { reportCode, title, fight, party } = item;
-        const uniqueId = `${reportCode}_${fight.id}`;
-        const isKill = fight.kill;
-        const savedData = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
+        fights.forEach(item => {
+            const { reportCode, title, fight, party } = item;
+            const uniqueId = `${reportCode}_${fight.id}`;
+            const isKill = fight.kill;
+            const savedData = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
 
-        const card = document.createElement('div');
-        card.className = 'log-card';
-        card.innerHTML = `
-            <div class="log-header">
-                <span class="status-badge ${isKill ? 'status-clear' : 'status-wipe'}">${isKill ? 'CLEAR' : 'WIPE'}</span>
-                <span style="font-size:12px; font-weight:bold;">${title}</span>
-                <span style="font-size:11px; color:var(--sub);">${reportCode}#${fight.id}</span>
-            </div>
-            <div class="log-body">
-                <div class="party-list">
-                    ${party.map(name => `<div class="player-name ${name === myName ? 'me' : ''}">${name}</div>`).join('')}
+            const card = document.createElement('div');
+            card.className = 'log-card';
+            card.innerHTML = `
+                <div class="log-header">
+                    <span class="status-badge ${isKill ? 'status-clear' : 'status-wipe'}">${isKill ? 'CLEAR' : 'WIPE'}</span>
+                    <span style="font-size:12px; font-weight:bold;">${title}</span>
+                    <span style="font-size:11px; color:var(--sub);">${reportCode}#${fight.id}</span>
                 </div>
-                <div class="gear-row">
-                    <input type="text" id="w-${uniqueId}" value="${savedData.w}" placeholder="무기">
-                    <input type="text" id="m-${uniqueId}" value="${savedData.m}" placeholder="메모">
+                <div class="log-body">
+                    <div class="party-list">
+                        ${party.map(name => `<div class="player-name ${name === myName ? 'me' : ''}">${name}</div>`).join('')}
+                    </div>
+                    <div class="gear-row">
+                        <input type="text" id="w-${uniqueId}" value="${savedData.w}" placeholder="무기 정보">
+                        <input type="text" id="m-${uniqueId}" value="${savedData.m}" placeholder="메모">
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <a href="https://ko.fflogs.com/reports/${reportCode}#fight=${fight.id}" target="_blank" class="btn-link">상세 분석 보기 ↗</a>
+                        <button class="btn-save" onclick="saveMemo('${uniqueId}')">저장</button>
+                    </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <a href="https://ko.fflogs.com/reports/${reportCode}#fight=${fight.id}" target="_blank" class="btn-link">전투 분석 보기 ↗</a>
-                    <button class="btn-save" onclick="saveMemo('${uniqueId}')">저장</button>
-                </div>
-            </div>
-        `;
-        container.appendChild(card);
-    });
-}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function saveMemo(id) {
+        const wVal = document.getElementById('w-' + id).value;
+        const mVal = document.getElementById('m-' + id).value;
+        localStorage.setItem('memo_' + id, JSON.stringify({ w: wVal, m: mVal }));
+        alert("저장되었습니다.");
+    }
+</script>
+</body>
+</html>
