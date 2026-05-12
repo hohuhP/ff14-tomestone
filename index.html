@@ -10,90 +10,96 @@
         .container { width: 100%; max-width: 700px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         
-        .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; }
-        .tabs-container::-webkit-scrollbar { display: none; }
-        .tab-btn { background: #2d3748; color: var(--sub); padding: 8px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; white-space: nowrap; border: none; transition: 0.2s; }
+        /* 탭 스타일 */
+        .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center; }
+        .tab-btn { background: #2d3748; color: var(--sub); padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; transition: 0.2s; flex: 1; }
         .tab-btn.active { background: var(--primary); color: white; font-weight: bold; }
 
-        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; overflow: hidden; border-left: 5px solid #444; animation: fadeIn 0.3s; }
+        /* 그룹 헤더 */
+        .group-header { font-size: 14px; font-weight: bold; margin: 25px 0 10px 5px; color: var(--sub); display: flex; align-items: center; gap: 8px; }
+        .group-header::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+        /* 로그 카드 */
+        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; border-left: 5px solid #444; animation: fadeIn 0.3s; }
         .log-card.is-clear { border-left-color: var(--clear); }
         .log-card.is-wipe { border-left-color: var(--wipe); }
-        .log-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
+        .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
         
-        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #0a0a0a; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .player-link { text-decoration: none; color: inherit; display: contents; }
-        .player-item { font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: #161616; border-radius: 6px; gap: 5px; min-height: 55px; border: 1px solid transparent; }
-        .player-item:hover { background: #252525; border-color: var(--primary); }
+        .progress-text { font-size: 12px; font-weight: bold; }
+        .progress-clear { color: var(--clear); }
+        .progress-wipe { color: var(--wipe); }
+
+        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 2px; background: #161616; border-radius: 6px; gap: 4px; border: 1px solid transparent; }
+        .job-icon { width: 18px; height: 18px; }
+        .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
         
-        .job-icon { width: 22px; height: 22px; border-radius: 3px; }
-        .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; font-size: 10px; }
         .job-tank { color: #2d71c1; }
         .job-healer { color: #467837; }
         .job-dps { color: #ad413d; }
         
-        .status-badge { padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: bold; }
-        .status-clear { background: var(--clear); color: white; }
-        .status-wipe { background: var(--wipe); color: white; }
-        
-        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; width: calc(100% - 22px); }
-        .color-input { width: 100%; height: 40px; padding: 2px; cursor: pointer; }
-        button { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; width: 100%; }
-        .btn-save { background: var(--primary); color: white; }
-        .btn-memo { background: #2d3748; color: white; font-size: 11px; width: auto; }
+        input { background: #111; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 6px; font-size: 12px; width: calc(100% - 18px); }
+        button.btn-memo { background: #2d3748; color: white; font-size: 11px; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- 설정창 -->
     <div id="section-settings" class="card">
         <h3 style="margin-top:0">⚙️ FFLogs 설정</h3>
         <input type="text" id="client-id" placeholder="Client ID">
-        <input type="password" id="client-secret" placeholder="Client Secret">
-        <input type="text" id="char-name" placeholder="캐릭터 이름">
-        <select id="char-server">
+        <input type="password" id="client-secret" placeholder="Client Secret" style="margin-top:10px">
+        <input type="text" id="char-name" placeholder="캐릭터 이름" style="margin-top:10px">
+        <select id="char-server" style="width:100%; padding:10px; background:#111; color:white; border:1px solid var(--border); border-radius:6px; margin-top:10px">
             <option value="Carbuncle">카벙클</option>
             <option value="Chocobo">초코보</option>
             <option value="Moogle">모그리</option>
             <option value="Tonberry">톤베리</option>
             <option value="Fenrir">펜리르</option>
         </select>
-        <div style="margin-bottom:15px;">
-            <label style="font-size:12px; color:var(--sub)">내 강조 색상</label>
-            <input type="color" id="my-color" class="color-input" value="#8b5cf6">
-        </div>
-        <button class="btn-save" onclick="saveSettings()">저장 후 시작</button>
+        <button class="btn-save" style="margin-top:15px; background:var(--primary); color:white; padding:12px; width:100%; border:none; border-radius:6px; font-weight:bold; cursor:pointer" onclick="saveSettings()">데이터 불러오기</button>
     </div>
 
-    <div id="tabs-wrapper" class="tabs-container"></div>
+    <!-- 탭 메뉴 -->
+    <div id="tabs-wrapper" class="tabs-container hidden">
+        <button class="tab-btn active" onclick="filterTab(this, '절')">절</button>
+        <button class="tab-btn" onclick="filterTab(this, '영식')">영식</button>
+        <button class="tab-btn" onclick="filterTab(this, '극')">극</button>
+        <button class="tab-btn" onclick="filterTab(this, '기타')">기타</button>
+    </div>
+
+    <!-- 리스트 출력 -->
     <div id="main-content"></div>
 </div>
 
 <script>
+    // 한글 명칭 및 카테고리 매핑 (한국어 데이터마이닝 기준)
     const bossNameMap = {
-        "Black Cat": { name: "라이트헤비 1층", cat: "아르카디아" },
-        "Honey B. Lovely": { name: "라이트헤비 2층", cat: "아르카디아" },
-        "Brute Bomber": { name: "라이트헤비 3층", cat: "아르카디아" },
-        "Wicked Thunder": { name: "라이트헤비 4층", cat: "아르카디아" },
-        "Kokytos": { name: "천옥 1층", cat: "판데모니움" },
-        "Pandaemonion": { name: "천옥 2층", cat: "판데모니움" },
-        "Themis": { name: "천옥 3층", cat: "판데모니움" },
-        "Athena": { name: "천옥 4층", cat: "판데모니움" },
-        "Pallas Athena": { name: "천옥 4층(후반)", cat: "판데모니움" },
-        "Proto-Carbuncle": { name: "연옥 1층", cat: "판데모니움" },
-        "Hegemone": { name: "연옥 2층", cat: "판데모니움" },
-        "Agdistis": { name: "연옥 3층", cat: "판데모니움" },
-        "Hephaistos": { name: "연옥 4층", cat: "판데모니움" },
-        "Erichthonios": { name: "변옥 1층", cat: "판데모니움" },
-        "Hippokampos": { name: "변옥 2층", cat: "판데모니움" },
-        "Phoinix": { name: "변옥 3층", cat: "판데모니움" },
-        "Hesperos": { name: "변옥 4층", cat: "판데모니움" },
-        "The Omega Protocol": { name: "절 오메가 검증전", cat: "절 레이드" },
-        "Dragonsong's Reprise": { name: "절 용시전쟁", cat: "절 레이드" },
-        "The Unending Coil of Bahamut": { name: "절 바하무트", cat: "절 레이드" },
-        "The Weapon's Refrain": { name: "절 알테마", cat: "절 레이드" },
-        "The Epic of Alexander": { name: "절 알렉산더", cat: "절 레이드" }
+        // [7.0] 라이트헤비
+        "Black Cat": { name: "라이트헤비 1층", cat: "영식" },
+        "Honey B. Lovely": { name: "라이트헤비 2층", cat: "영식" },
+        "Brute Bomber": { name: "라이트헤비 3층", cat: "영식" },
+        "Wicked Thunder": { name: "라이트헤비 4층", cat: "영식" },
+        // [6.4] 천옥
+        "Kokytos": { name: "천옥 1층", cat: "영식" },
+        "Pandaemonion": { name: "천옥 2층", cat: "영식" },
+        "Themis": { name: "천옥 3층", cat: "영식" },
+        "Athena": { name: "천옥 4층", cat: "영식" },
+        "Pallas Athena": { name: "천옥 4층(후반)", cat: "영식" },
+        // 절 레이드
+        "The Omega Protocol": { name: "절 오메가 검증전", cat: "절" },
+        "Dragonsong's Reprise": { name: "절 용시전쟁", cat: "절" },
+        "The Unending Coil of Bahamut": { name: "절 바하무트", cat: "절" },
+        "The Weapon's Refrain": { name: "절 알테마", cat: "절" },
+        "The Epic of Alexander": { name: "절 알렉산더", cat: "절" },
+        // 토벌전
+        "The Gilded Araya": { name: "아수라 토벌전", cat: "극" },
+        "Valigarmanda": { name: "바리 가르만다", cat: "극" },
+        "Zoraal Ja": { name: "조라 자", cat: "극" }
     };
 
     const jobGroup = {
@@ -108,6 +114,7 @@
         const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
         if(saved) {
             document.getElementById('section-settings').style.display = 'none';
+            document.getElementById('tabs-wrapper').classList.remove('hidden');
             fetchData(saved);
         }
     };
@@ -117,8 +124,7 @@
             id: document.getElementById('client-id').value.trim(),
             secret: document.getElementById('client-secret').value.trim(),
             name: document.getElementById('char-name').value.trim(),
-            server: document.getElementById('char-server').value,
-            myColor: document.getElementById('my-color').value
+            server: document.getElementById('char-server').value
         };
         localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
         location.reload();
@@ -131,17 +137,17 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
             });
-            const { access_token } = await tokenRes.json();
+            const tokenData = await tokenRes.json();
+            const access_token = tokenData.access_token;
 
-            // complexity 최적화: limit를 30으로 하향 조정
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
-                        recentReports(limit: 30) { 
+                        recentReports(limit: 25) { 
                             data {
                                 code
-                                masterData { actors(type: "Player") { id name icon type } }
-                                fights { id kill name friendlyPlayers encounterID }
+                                masterData { actors(type: "Player") { id name icon } }
+                                fights { id kill name friendlyPlayers encounterID fightPercentage }
                             }
                         }
                     }
@@ -155,10 +161,9 @@
             });
 
             const result = await res.json();
-            if (result.errors) throw new Error(result.errors[0].message);
             processData(result.data.characterData.character.recentReports.data, saved);
         } catch (e) {
-            alert("데이터 로드 실패: " + e.message);
+            alert("데이터 로드 실패: 설정값을 확인해주세요.");
             localStorage.removeItem('tomestone_cfg');
             location.reload();
         }
@@ -166,100 +171,96 @@
 
     function processData(reports, saved) {
         allFightsData = [];
-        const categories = new Set(["전체"]);
-
         reports.forEach(report => {
             (report.fights || []).filter(f => f.encounterID !== 0).forEach(fight => {
                 const bossInfo = bossNameMap[fight.name] || { name: fight.name, cat: "기타" };
-                categories.add(bossInfo.cat);
-                
                 allFightsData.push({
                     ...fight,
                     reportCode: report.code,
                     actors: report.masterData.actors,
                     korName: bossInfo.name,
                     category: bossInfo.cat,
-                    reportServer: saved.server // 서버 정보를 리포트 데이터에 포함
+                    server: saved.server
                 });
             });
         });
-
-        allFightsData.sort((a, b) => b.id - a.id);
-        renderTabs(Array.from(categories));
-        renderContent("전체", saved);
-    }
-
-    function renderTabs(cats) {
-        const wrapper = document.getElementById('tabs-wrapper');
-        wrapper.innerHTML = cats.map(cat => `
-            <button class="tab-btn ${cat === '전체' ? 'active' : ''}" onclick="filterTab(this, '${cat}')">${cat}</button>
-        `).join('');
+        renderContent('절'); 
     }
 
     function filterTab(btn, cat) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
-        renderContent(cat, saved);
+        renderContent(cat);
     }
 
-    function renderContent(targetCat, saved) {
+    function renderContent(targetCat) {
         const container = document.getElementById('main-content');
-        const filtered = targetCat === "전체" ? allFightsData : allFightsData.filter(f => f.category === targetCat);
+        const filtered = allFightsData.filter(f => f.category === targetCat);
+        
+        const clears = filtered.filter(f => f.kill);
+        const wipes = filtered.filter(f => !f.kill);
 
-        if(filtered.length === 0) {
-            container.innerHTML = "<div class='card'>리포트가 없습니다.</div>";
-            return;
+        let html = "";
+
+        if(clears.length > 0) {
+            html += `<div class="group-header">CLEAR</div>`;
+            html += clears.map(f => renderLogCard(f)).join('');
         }
 
-        container.innerHTML = filtered.map(fight => {
-            const uniqueId = `${fight.reportCode}_${fight.id}`;
-            const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
+        if(wipes.length > 0) {
+            html += `<div class="group-header">WIPE</div>`;
+            html += wipes.map(f => renderLogCard(f)).join('');
+        }
 
-            const partyHtml = (fight.friendlyPlayers || []).map(pId => {
-                const actor = fight.actors.find(a => a.id === pId);
-                if(!actor || actor.type !== "Player" || actor.name === "Multiple Players" || actor.name === "Limit Break") return null;
-                
-                const isMe = actor.name === saved.name;
-                const group = jobGroup.Tank.includes(actor.icon) ? 'job-tank' : jobGroup.Healer.includes(actor.icon) ? 'job-healer' : 'job-dps';
-                
-                return `
-                    <a href="https://ko.fflogs.com/character/kr/${fight.reportServer}/${actor.name}" target="_blank" class="player-link">
-                        <div class="player-item">
-                            <img src="https://assets.rpglogs.com/img/ff/icons/${actor.icon}.png" class="job-icon">
-                            <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+saved.myColor+';font-weight:bold;' : ''}">${actor.name}</div>
-                        </div>
-                    </a>`;
-            }).filter(h => h).slice(0, 8).join('');
+        container.innerHTML = html || `<div class="card" style="text-align:center; color:var(--sub)">기록이 없습니다.</div>`;
+    }
 
+    function renderLogCard(fight) {
+        const uniqueId = `${fight.reportCode}_${fight.id}`;
+        const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {m:''};
+        
+        // 진행도 계산: 클리어면 체크표시, 전멸이면 남은 체력 % 표시
+        const progress = fight.kill ? 
+            `<span class="progress-text progress-clear">✅ CLEAR</span>` : 
+            `<span class="progress-text progress-wipe">진행도: ${Math.floor(100 - (fight.fightPercentage / 100))} %</span>`;
+
+        const partyHtml = (fight.friendlyPlayers || []).map(pId => {
+            const actor = fight.actors.find(a => a.id === pId);
+            if(!actor || actor.name === "Limit Break" || actor.name === "Multiple Players") return null;
+            
+            const group = jobGroup.Tank.includes(actor.icon) ? 'job-tank' : jobGroup.Healer.includes(actor.icon) ? 'job-healer' : 'job-dps';
             return `
-                <div class="log-card ${fight.kill ? 'is-clear' : 'is-wipe'}">
-                    <div class="log-header">
-                        <span class="status-badge ${fight.kill ? 'status-clear' : 'status-wipe'}">${fight.kill ? 'CLEAR' : 'WIPE'}</span>
-                        <span style="font-weight:bold;">${fight.korName}</span>
-                        <span style="font-size:10px; color:var(--sub)">${fight.reportCode}</span>
-                    </div>
-                    <div style="padding:15px;">
-                        <div class="party-grid">${partyHtml}</div>
-                        <div style="display:flex; gap:8px; margin-bottom:10px;">
-                            <input type="text" id="w-${uniqueId}" value="${memo.w}" placeholder="현황" style="margin:0; flex:1">
-                            <input type="text" id="m-${uniqueId}" value="${memo.m}" placeholder="메모" style="margin:0; flex:2">
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center">
-                            <a href="https://ko.fflogs.com/reports/${fight.reportCode}#fight=${fight.id}" target="_blank" style="color:var(--primary); font-size:11px; text-decoration:none;">로그 보기 ↗</a>
-                            <button class="btn-memo" onclick="saveMemo('${uniqueId}')">저장</button>
-                        </div>
-                    </div>
+                <div class="player-item">
+                    <img src="https://assets.rpglogs.com/img/ff/icons/${actor.icon}.png" class="job-icon">
+                    <div class="player-name ${group}">${actor.name}</div>
                 </div>`;
-        }).join('');
+        }).filter(h => h).slice(0, 8).join('');
+
+        return `
+            <div class="log-card ${fight.kill ? 'is-clear' : 'is-wipe'}">
+                <div class="log-header">
+                    <span style="font-weight:bold; font-size:13px">${fight.korName}</span>
+                    ${progress}
+                </div>
+                <div style="padding:12px;">
+                    <div class="party-grid">${partyHtml}</div>
+                    <div style="display:flex; gap:5px; align-items:center">
+                        <input type="text" id="m-${uniqueId}" value="${memo.m}" placeholder="메모 (파밍 현황 등)">
+                        <button class="btn-memo" onclick="saveMemo('${uniqueId}')">저장</button>
+                    </div>
+                    <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center">
+                         <span style="font-size:10px; color:var(--sub)">${fight.reportCode}</span>
+                         <a href="https://ko.fflogs.com/reports/${fight.reportCode}#fight=${fight.id}" target="_blank" style="color:var(--primary); font-size:11px; text-decoration:none;">로그 분석 ↗</a>
+                    </div>
+                </div>
+            </div>`;
     }
 
     function saveMemo(id) {
         localStorage.setItem('memo_' + id, JSON.stringify({
-            w: document.getElementById('w-' + id).value,
             m: document.getElementById('m-' + id).value
         }));
-        alert("저장되었습니다.");
+        alert("메모가 저장되었습니다.");
     }
 </script>
 </body>
