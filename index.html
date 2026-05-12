@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KR Tomestone - 나의 FF14 기록</title>
+    <style>
+        /* 톰스톤 스타일 다크 테마 */
+        :root {
+            --bg-color: #0d0e12;
+            --card-bg: #1a1c23;
+            --primary: #8b5cf6; /* 보라색(에픽) */
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --border: #2d3748;
+        }
+        body {
+            margin: 0; font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main);
+            display: flex; justify-content: center; padding: 20px;
+        }
+        .container { width: 100%; max-width: 900px; }
+        h1, h2, h3 { color: var(--text-main); margin-top: 0; }
+        
+        /* 1. 로그인 & API 설정 영역 */
+        .setup-panel { background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        input { flex: 1; padding: 10px; background: #000; border: 1px solid var(--border); color: white; border-radius: 6px; }
+        button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.8; }
+
+        /* 2. 내 캐릭터 프로필 영역 */
+        .profile-card { display: flex; gap: 20px; background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px; align-items: center; border: 1px solid var(--border); }
+        .profile-img { width: 120px; height: 120px; border-radius: 10px; object-fit: cover; background: #333; cursor: pointer; border: 2px dashed var(--text-sub); }
+        .profile-info h1 { margin: 0 0 5px 0; font-size: 28px; }
+        .profile-info p { margin: 0; color: var(--text-sub); font-size: 16px; }
+
+        /* 3. 레이드 진행도 (톰스톤 디자인) */
+        .raid-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .raid-card { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+        .raid-title { font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .progress-bar { width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 1s ease-in-out; }
+
+        /* 4. 로그 상세 & 장비 입력 영역 */
+        .log-section { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .log-item { background: #000; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--primary); cursor: pointer; }
+        .log-header { display: flex; justify-content: space-between; align-items: center; }
+        .log-header a { color: #60a5fa; text-decoration: none; font-size: 14px; }
+        .log-header a:hover { text-decoration: underline; }
+        
+        .log-detail { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); }
+        .party-list { color: var(--text-sub); font-size: 14px; margin-bottom: 15px; }
+        
+        /* 장비 입력 테이블 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-sub); font-size: 12px; }
+        td input { width: 90%; padding: 6px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 1. API 연동 및 캐릭터 설정 -->
+    <div class="setup-panel">
+        <h2>⚙️ 초기 설정 (FFLogs 연동)</h2>
+        <div class="input-group">
+            <input type="text" id="char-name" placeholder="캐릭터 이름">
+            <input type="text" id="char-server" placeholder="서버 (예: Chocobo)">
+        </div>
+        <div class="input-group">
+            <input type="password" id="api-key" placeholder="FFLogs V2 API Client Secret 입력">
+            <button onclick="saveProfile()">저장 및 연동</button>
+        </div>
+    </div>
+
+    <!-- 2. 프로필 (이미지 관리) -->
+    <div class="profile-card">
+        <img src="" alt="클릭하여 이미지 URL 입력" class="profile-img" id="profile-img" onclick="changeImage()">
+        <div class="profile-info">
+            <h1 id="display-name">이름 없음</h1>
+            <p id="display-server">서버 정보 없음</p>
+        </div>
+    </div>
+
+    <!-- 3. 레이드 진행도 -->
+    <div class="raid-grid">
+        <div class="raid-card">
+            <div class="raid-title">
+                <span>아르카디아 선수권 (영웅)</span>
+                <span id="raid-text-1">0%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="raid-prog-1"></div></div>
+            <p style="font-size: 12px; color: var(--text-sub); margin-top: 10px;">클리어: 3 / 4 층</p>
+        </div>
+        <div class="raid-card">
+            <div class="raid-title">
+                <span>절 에덴 파괴전</span>
+                <span id="raid-text-2">0%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="raid-prog-2"></div></div>
+            <p style="font-size: 12px; color: var(--text-sub); margin-top: 10px;">최고 진행도: 2악장 (45%)</p>
+        </div>
+    </div>
+
+    <!-- 4. 최근 전투 로그 및 장비 기록 -->
+    <div class="log-section">
+        <h2>⚔️ 최근 전투 로그 및 장비 기록</h2>
+        
+        <!-- 개별 로그 아이템 -->
+        <div class="log-item" onclick="toggleLogDetail('log1')">
+            <div class="log-header">
+                <strong>[영웅] 아르카디아 선수권 3층 - 전사 (95점)</strong>
+                <!-- 프프로그 원본 링크 -->
+                <a href="https://ko.fflogs.com/" target="_blank" onclick="event.stopPropagation()">FFLogs 원본 보기 ↗</a>
+            </div>
+            
+            <!-- 클릭 시 열리는 상세 정보 (진행도/파티원/장비) -->
+            <div class="log-detail" id="log1">
+                <div class="party-list">
+                    <strong>파티원:</strong> 나(전사), 건브레이커, 백마도사, 학자, 몽크, 리퍼, 무도가, 픽토맨서<br>
+                    <strong>클리어 여부:</strong> 클리어 성공! (0% 전멸 없음)
+                </div>
+                
+                <strong>나의 장비 세팅 기록 (수동 입력)</strong>
+                <table>
+                    <tr><th>부위</th><th>아이템 이름 (한국어)</th><th>마테리아 1</th><th>마테리아 2</th></tr>
+                    <tr>
+                        <td>무기</td>
+                        <td><input type="text" placeholder="예: 아르카디아 전투도끼"></td>
+                        <td><input type="text" placeholder="무략의 엑스"></td>
+                        <td><input type="text" placeholder="무략의 엑스"></td>
+                    </tr>
+                    <tr>
+                        <td>머리</td>
+                        <td><input type="text" placeholder="예: 아수라 수호자 투구"></td>
+                        <td><input type="text" placeholder="강창의 엑스"></td>
+                        <td><input type="text" placeholder="야망의 엑스"></td>
+                    </tr>
+                </table>
+                <button style="margin-top: 10px; width: 100%;" onclick="event.stopPropagation(); alert('장비가 저장되었습니다.')">장비 기록 저장</button>
+            </div>
+        </div>
+
+        <!-- 실패한 로그 (전멸 퍼센트 예시) -->
+        <div class="log-item" onclick="toggleLogDetail('log2')" style="border-left-color: #ef4444;">
+            <div class="log-header">
+                <strong>[영웅] 아르카디아 선수권 4층 - 전사 (전멸)</strong>
+                <a href="https://ko.fflogs.com/" target="_blank" onclick="event.stopPropagation()">FFLogs 원본 보기 ↗</a>
+            </div>
+            <div class="log-detail" id="log2">
+                <div class="party-list" style="color: #ef4444;">
+                    <strong>최고 진행도 (가장 아까운 전멸):</strong> 2.4% (전멸)
+                </div>
+                <button style="margin-top: 10px; width: 100%;" onclick="event.stopPropagation(); alert('메모: 2페이즈 기믹 실수 보완 필요')">로그 메모 남기기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 프로필 저장 로직 (입력한 텍스트 반영)
+    function saveProfile() {
+        const name = document.getElementById('char-name').value;
+        const server = document.getElementById('char-server').value;
+        
+        if(name) document.getElementById('display-name').innerText = name;
+        if(server) document.getElementById('display-server').innerText = server;
+        
+        // 시각적 연출: API 연동 성공한 것처럼 게이지 채우기
+        setTimeout(() => {
+            document.getElementById('raid-prog-1').style.width = '75%';
+            document.getElementById('raid-text-1').innerText = '75%';
+            document.getElementById('raid-prog-2').style.width = '45%';
+            document.getElementById('raid-text-2').innerText = '45%';
+        }, 500);
+
+        alert("FFLogs API 연동 및 캐릭터 설정이 완료되었습니다!");
+    }
+
+    // 2. 캐릭터 이미지 직접 클릭해서 변경하는 로직
+    function changeImage() {
+        const url = prompt("캐릭터 이미지 URL을 입력하세요 (Discord, Imgur 링크 등):", "https://via.placeholder.com/120");
+        if(url) {
+            document.getElementById('profile-img').src = url;
+            document.getElementById('profile-img').style.border = "none";
+        }
+    }
+
+    // 3. 로그 상세 정보 열기/닫기 (아코디언 기능)
+    function toggleLogDetail(id) {
+        const detail = document.getElementById(id);
+        if (detail.style.display === "block") {
+            detail.style.display = "none";
+        } else {
+            detail.style.display = "block";
+        }
+    }
+</script>
+
+</body>
+</html>
