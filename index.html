@@ -3,137 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KR Tomestone - My Page</title>
+    <title>KR Tomestone - Raid Manager</title>
     <style>
-        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --accent: #ffd700; }
+        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { width: 100%; max-width: 850px; }
+        .container { width: 100%; max-width: 900px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         
-        /* UI 요소 */
-        .input-box { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-        input, select { background: #000; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 6px; flex: 1; min-width: 200px; font-size: 14px; }
-        button { padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { opacity: 0.8; }
-        .btn-save { background: #10b981; width: 100%; margin-top: 10px; }
-        .btn-reset { background: #ef4444; font-size: 12px; padding: 5px 10px; margin-top: 20px; }
+        .raid-group-header { border-bottom: 2px solid var(--primary); margin: 30px 0 15px 0; padding-bottom: 5px; font-size: 20px; font-weight: bold; color: var(--primary); }
+        
+        .log-card { background: #000; border-radius: 10px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; }
+        .log-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #111; }
+        .status-badge { padding: 4px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; }
+        .status-clear { background: var(--clear); color: white; }
+        .status-wipe { background: var(--wipe); color: white; }
+        
+        .log-body { padding: 15px; }
+        .party-list { font-size: 13px; color: var(--sub); margin-bottom: 10px; line-height: 1.4; }
+        
+        .gear-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        input { background: #1a1c23; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; font-size: 13px; width: 100%; box-sizing: border-box; }
+        
+        button { padding: 10px 15px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-main { background: var(--primary); color: white; width: 100%; }
+        .btn-save { background: #333; color: var(--sub); font-size: 12px; width: 100%; margin-top: 10px; }
+        .btn-save:hover { background: var(--primary); color: white; }
 
-        /* 프로필 섹션 */
-        .profile-header { display: flex; gap: 25px; align-items: center; position: relative; }
-        .profile-img-container { position: relative; width: 120px; height: 120px; }
-        .profile-img { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; border: 2px solid var(--border); cursor: pointer; }
-        .img-edit-hint { position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.6); font-size: 10px; padding: 2px 5px; border-radius: 4px; }
-        
-        /* 레이드 & 로그 스타일 */
-        .raid-item { margin-top: 20px; padding: 20px; background: #000; border-radius: 10px; border-left: 5px solid var(--primary); }
-        .log-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
-        .party-box { font-size: 13px; color: var(--sub); background: #111; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
-        
-        /* 장비 입력 테이블 */
-        .gear-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 15px; }
-        .gear-table th { text-align: left; color: var(--accent); padding-bottom: 8px; border-bottom: 1px solid #333; }
-        .gear-table td { padding: 8px 0; border-bottom: 1px solid #222; }
-        .gear-table input { width: 90%; padding: 5px; font-size: 12px; min-width: auto; }
-        
         .tab-menu { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { background: none; border: 1px solid var(--border); color: var(--sub); }
-        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .tab-btn { background: none; border: 1px solid var(--border); color: var(--sub); cursor: pointer; padding: 10px 20px; border-radius: 6px; }
+        .tab-btn.active { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 상단 탭 (마이페이지 / 설정) -->
     <div class="tab-menu">
-        <button class="tab-btn active" onclick="switchTab('view')">내 페이지</button>
-        <button class="tab-btn" onclick="switchTab('settings')">설정 관리</button>
+        <button class="tab-btn active" onclick="location.reload()">새로고침 & 데이터 동기화</button>
+        <button class="tab-btn" onclick="toggleSettings()">설정 변경</button>
     </div>
 
-    <!-- 1. 설정 섹션 (최초 1회만 입력) -->
     <div id="section-settings" class="card" style="display: none;">
-        <h3>⚙️ 계정 및 API 설정</h3>
-        <p style="font-size:12px; color:var(--sub);">입력한 정보는 브라우저에 안전하게 저장되어 다음 접속 시 자동으로 불러옵니다.</p>
-        <div class="input-box">
-            <input type="text" id="client-id" placeholder="FFLogs Client ID">
-            <input type="password" id="client-secret" placeholder="FFLogs Client Secret">
-        </div>
-        <div class="input-box">
-            <input type="text" id="char-name" placeholder="캐릭터 이름">
-            <select id="char-server">
-                <option value="Carbuncle">카벙클</option>
-                <option value="Chocobo">초코보</option>
-                <option value="Moogle">모그리</option>
-                <option value="Tonberry">톤베리</option>
-                <option value="Fenrir">펜리르</option>
-            </select>
-        </div>
-        <button class="btn-save" onclick="saveSettings()">설정 저장 및 데이터 갱신</button>
-        <button class="btn-reset" onclick="resetAll()">전체 초기화 (로그아웃)</button>
+        <h3>⚙️ 설정</h3>
+        <input type="text" id="client-id" placeholder="Client ID" style="margin-bottom:10px;">
+        <input type="password" id="client-secret" placeholder="Client Secret" style="margin-bottom:10px;">
+        <input type="text" id="char-name" placeholder="캐릭터 이름" style="margin-bottom:10px;">
+        <select id="char-server" style="background:#000; color:white; width:100%; padding:10px; margin-bottom:10px;">
+            <option value="Carbuncle">카벙클</option>
+            <option value="Chocobo">초코보</option>
+            <option value="Moogle">모그리</option>
+            <option value="Tonberry">톤베리</option>
+            <option value="Fenrir">펜리르</option>
+        </select>
+        <button class="btn-main" onclick="saveSettings()">저장 후 새로고침</button>
     </div>
 
-    <!-- 2. 내 페이지 뷰 섹션 -->
-    <div id="section-view">
-        <div class="card" id="profile-card">
-            <div class="profile-header">
-                <div class="profile-img-container" onclick="changeImage()">
-                    <img id="display-img" src="https://via.placeholder.com/120" class="profile-img">
-                    <span class="img-edit-hint">변경</span>
-                </div>
-                <div>
-                    <h1 id="display-name" style="margin:0;">설정에서 정보를 입력해주세요</h1>
-                    <p id="display-server" style="margin:5px 0; color:var(--sub);">-</p>
-                    <a id="fflogs-link" href="#" target="_blank" style="font-size:12px; color:var(--primary); text-decoration:none;">FFLogs 프로필 바로가기 ↗</a>
-                </div>
-            </div>
-        </div>
-
-        <div id="raid-list-container">
-            <!-- 레이드 로그가 여기에 생성됩니다 -->
-        </div>
+    <div id="main-content">
+        <p style="text-align:center; color:var(--sub);">데이터를 불러오는 중...</p>
     </div>
 </div>
 
 <script>
-    // 페이지 로드 시 저장된 정보 불러오기
     window.onload = function() {
         const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
-        if(saved) {
-            document.getElementById('client-id').value = saved.id || '';
-            document.getElementById('client-secret').value = saved.secret || '';
-            document.getElementById('char-name').value = saved.name || '';
-            document.getElementById('char-server').value = saved.server || 'Carbuncle';
-            document.getElementById('display-img').src = saved.img || 'https://via.placeholder.com/120';
-            fetchData(); // 자동으로 데이터 불러오기
+        if(!saved) {
+            document.getElementById('section-settings').style.display = 'block';
+            document.getElementById('main-content').innerHTML = '';
         } else {
-            switchTab('settings');
+            fetchData(saved);
         }
     };
 
-    function switchTab(type) {
-        document.getElementById('section-view').style.display = type === 'view' ? 'block' : 'none';
-        document.getElementById('section-settings').style.display = type === 'settings' ? 'block' : 'none';
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        event.target.classList.add('active');
+    function toggleSettings() {
+        const s = document.getElementById('section-settings');
+        s.style.display = s.style.display === 'none' ? 'block' : 'none';
     }
 
-    async function saveSettings() {
+    function saveSettings() {
         const cfg = {
             id: document.getElementById('client-id').value.trim(),
             secret: document.getElementById('client-secret').value.trim(),
             name: document.getElementById('char-name').value.trim(),
-            server: document.getElementById('char-server').value,
-            img: document.getElementById('display-img').src
+            server: document.getElementById('char-server').value
         };
         localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
-        alert("설정이 저장되었습니다!");
-        fetchData();
-        switchTab('view');
+        location.reload();
     }
 
-    async function fetchData() {
-        const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
-        if(!saved || !saved.id) return;
-
+    async function fetchData(saved) {
         try {
             const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
                 method: 'POST',
@@ -143,9 +99,21 @@
             const tokenData = await tokenRes.json();
             const token = tokenData.access_token;
 
-            const query = `query { characterData { character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") { 
-                id recentReports(limit: 5) { data { code title masterData { actors(type: "Player") { name subType } } } } 
-            } } }`;
+            const query = `query {
+                characterData {
+                    character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
+                        recentReports(limit: 20) {
+                            data {
+                                code
+                                title
+                                startTime
+                                fights { kill }
+                                masterData { actors(type: "Player") { name subType } }
+                            }
+                        }
+                    }
+                }
+            }`;
 
             const res = await fetch('https://www.fflogs.com/api/v2/client', {
                 method: 'POST',
@@ -153,84 +121,71 @@
                 body: JSON.stringify({ query })
             });
             const result = await res.json();
-            const char = result.data.characterData.character;
+            const reports = result.data.characterData.character.recentReports.data;
 
-            if(!char) throw new Error("캐릭터를 찾을 수 없습니다.");
+            renderLogs(reports);
+        } catch (e) {
+            document.getElementById('main-content').innerHTML = `<p style='color:red;'>오류: ${e.message}</p>`;
+        }
+    }
 
-            // UI 업데이트
-            document.getElementById('display-name').innerText = saved.name;
-            document.getElementById('display-server').innerText = saved.server + " 서버";
-            document.getElementById('fflogs-link').href = `https://ko.fflogs.com/character/kr/${saved.server.toLowerCase()}/${saved.name}`;
+    function renderLogs(reports) {
+        const container = document.getElementById('main-content');
+        container.innerHTML = "";
 
-            const container = document.getElementById('raid-list-container');
-            container.innerHTML = "<h3>⚔️ 최근 전투 기록 및 장비 메모</h3>";
+        const grouped = {};
+        reports.forEach(r => {
+            if (!grouped[r.title]) grouped[r.title] = [];
+            grouped[r.title].push(r);
+        });
 
-            char.recentReports.data.forEach(report => {
+        for (const title in grouped) {
+            const groupSection = document.createElement('div');
+            groupSection.innerHTML = `<div class="raid-group-header">⚔️ ${title}</div>`;
+            
+            grouped[title].forEach(report => {
+                const kills = report.fights.filter(f => f.kill).length;
+                const wipes = report.fights.filter(f => !f.kill).length;
+                const isClear = kills > 0;
                 const party = report.masterData.actors.map(a => a.name).join(", ");
                 const reportCode = report.code;
                 
-                // 저장된 장비 정보 불러오기
-                const savedGear = JSON.parse(localStorage.getItem('gear_' + reportCode)) || {weapon: '', head: '', body: ''};
+                const gear = JSON.parse(localStorage.getItem('gear_' + reportCode)) || {w:'', m:''};
 
-                container.innerHTML += `
-                    <div class="raid-item">
-                        <div class="log-title">
-                            <span>${report.title}</span>
-                            <a href="https://ko.fflogs.com/reports/${reportCode}" target="_blank" style="font-size:12px; color:var(--primary);">로그 보기 ↗</a>
+                const logHtml = `
+                    <div class="log-card">
+                        <div class="log-header">
+                            <span style="font-size:14px; font-weight:bold;">Code: ${reportCode}</span>
+                            <span class="status-badge ${isClear ? 'status-clear' : 'status-wipe'}">
+                                ${isClear ? '클리어' : '리트'} (${wipes}회)
+                            </span>
                         </div>
-                        <div class="party-box"><strong>파티원:</strong> ${party.substring(0, 100)}...</div>
-                        
-                        <table class="gear-table">
-                            <tr><th width="20%">부위</th><th width="40%">장비명</th><th width="40%">마테리아</th></tr>
-                            <tr>
-                                <td>무기</td>
-                                <td><input type="text" id="w-${reportCode}" value="${savedGear.weapon}" placeholder="장비 입력"></td>
-                                <td><input type="text" id="wm-${reportCode}" value="${savedGear.wm || ''}" placeholder="마테리아"></td>
-                            </tr>
-                            <tr>
-                                <td>머리</td>
-                                <td><input type="text" id="h-${reportCode}" value="${savedGear.head}" placeholder="장비 입력"></td>
-                                <td><input type="text" id="hm-${reportCode}" value="${savedGear.hm || ''}" placeholder="마테리아"></td>
-                            </tr>
-                        </table>
-                        <button class="btn-save" style="font-size:12px; padding:5px;" onclick="saveGear('${reportCode}')">이 로그의 장비 저장</button>
+                        <div class="log-body">
+                            <div class="party-list"><strong>8인 파티:</strong> ${party}</div>
+                            <div style="font-size:12px; margin-bottom:10px;">
+                                <a href="https://ko.fflogs.com/reports/${reportCode}" target="_blank" style="color:var(--primary); text-decoration:none;">리포트 상세 보기 ↗</a>
+                            </div>
+                            <div class="gear-grid">
+                                <input type="text" id="w-${reportCode}" value="${gear.w}" placeholder="무기">
+                                <input type="text" id="m-${reportCode}" value="${gear.m}" placeholder="마테리아/메모">
+                            </div>
+                            <button class="btn-save" onclick="saveGear('${reportCode}')">메모 저장</button>
+                        </div>
                     </div>
                 `;
+                groupSection.innerHTML += logHtml;
             });
-
-        } catch (e) {
-            console.error(e);
+            container.appendChild(groupSection);
         }
     }
 
     function saveGear(code) {
-        const gear = {
-            weapon: document.getElementById('w-' + code).value,
-            wm: document.getElementById('wm-' + code).value,
-            head: document.getElementById('h-' + code).value,
-            hm: document.getElementById('hm-' + code).value
+        const data = {
+            w: document.getElementById('w-' + code).value,
+            m: document.getElementById('m-' + code).value
         };
-        localStorage.setItem('gear_' + code, JSON.stringify(gear));
-        alert("해당 로그의 장비 정보가 저장되었습니다!");
-    }
-
-    function changeImage() {
-        const url = prompt("캐릭터 이미지 URL을 입력하세요.");
-        if(url) {
-            document.getElementById('display-img').src = url;
-            const cfg = JSON.parse(localStorage.getItem('tomestone_cfg'));
-            if(cfg) {
-                cfg.img = url;
-                localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
-            }
-        }
-    }
-
-    function resetAll() {
-        if(confirm("모든 설정과 저장된 장비 정보가 지워집니다. 계속할까요?")) {
-            localStorage.clear();
-            location.reload();
-        }
+        localStorage.setItem('gear_' + code, JSON.stringify(data));
+        alert("저장되었습니다.");
     }
 </script>
 
