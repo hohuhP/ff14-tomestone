@@ -2,65 +2,47 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FFLogs 리포트 매니저</title>
+    <title>FFLogs KR Report Manager</title>
     <style>
         :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
         .container { width: 100%; max-width: 700px; }
         
-        /* 섹션 구분 */
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        h3 { margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-
-        /* 설정창 스타일 */
+        /* 설정창 고정 */
+        .settings-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; width: 100%; box-sizing: border-box; }
-        .full-width { grid-column: span 2; }
-        button.btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button.btn-main:hover { opacity: 0.9; }
+        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; width: 100%; }
+        .btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
-        /* 탭 스타일 */
+        /* 탭 메뉴 */
         .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab-btn { background: #2d3748; color: var(--sub); padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; flex: 1; transition: 0.2s; }
+        .tab-btn { background: #2d3748; color: var(--sub); padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; flex: 1; }
         .tab-btn.active { background: var(--primary); color: white; font-weight: bold; }
 
-        /* 그룹 헤더 */
-        .group-header { font-size: 13px; font-weight: bold; margin: 25px 0 10px 5px; color: var(--sub); display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+        /* 그룹 헤더 및 카드 */
+        .group-header { font-size: 13px; font-weight: bold; margin: 25px 0 10px 5px; color: var(--sub); display: flex; align-items: center; gap: 8px; }
         .group-header::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-
-        /* 로그 카드 */
-        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; border-left: 5px solid #444; animation: fadeIn 0.3s; }
+        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; border-left: 5px solid #444; overflow: hidden; }
         .log-card.is-clear { border-left-color: var(--clear); }
         .log-card.is-wipe { border-left-color: var(--wipe); }
         .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
         
-        .progress-text { font-size: 12px; font-weight: bold; }
-        .progress-clear { color: var(--clear); }
-        .progress-wipe { color: var(--wipe); }
-
-        /* 파티 구성원 */
-        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; }
         .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; }
         .job-icon { width: 18px; height: 18px; }
         .job-tank { color: #2d71c1; } .job-healer { color: #467837; } .job-dps { color: #ad413d; }
-        
-        .memo-area { display: flex; gap: 5px; margin-top: 10px; }
-        .btn-save-memo { background: #2d3748; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; font-size: 11px; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 설정창 (상단 고정) -->
-    <div id="section-settings" class="card">
-        <h3>⚙️ FFLogs 설정</h3>
+    <!-- API 및 닉네임 설정창 (상단 고정) -->
+    <div class="settings-card">
+        <h3 style="margin-top:0; font-size:15px;">⚙️ FFLogs KR 연동 설정</h3>
         <div class="settings-grid">
             <input type="text" id="client-id" placeholder="Client ID">
             <input type="password" id="client-secret" placeholder="Client Secret">
-            <input type="text" id="char-name" placeholder="닉네임">
+            <input type="text" id="char-name" placeholder="캐릭터명">
             <select id="char-server">
                 <option value="Carbuncle">카벙클</option>
                 <option value="Chocobo">초코보</option>
@@ -69,45 +51,51 @@
                 <option value="Fenrir">펜리르</option>
             </select>
         </div>
-        <button class="btn-main" onclick="saveSettings()">설정 저장 및 데이터 갱신</button>
+        <button class="btn-main" onclick="saveSettings()">설정 저장 및 갱신</button>
     </div>
 
-    <!-- 탭 메뉴 -->
-    <div id="tabs-wrapper" class="tabs-container">
+    <!-- 탭 구성 -->
+    <div class="tabs-container">
         <button class="tab-btn active" onclick="filterTab(this, '절')">절</button>
         <button class="tab-btn" onclick="filterTab(this, '영식')">영식</button>
         <button class="tab-btn" onclick="filterTab(this, '극')">극</button>
         <button class="tab-btn" onclick="filterTab(this, '기타')">기타</button>
     </div>
 
-    <!-- 데이터 출력부 -->
     <div id="main-content"></div>
 </div>
 
 <script>
-    const bossNameMap = {
-        "Black Cat": { name: "라이트헤비 1층", cat: "영식" },
-        "Honey B. Lovely": { name: "라이트헤비 2층", cat: "영식" },
-        "Brute Bomber": { name: "라이트헤비 3층", cat: "영식" },
-        "Wicked Thunder": { name: "라이트헤비 4층", cat: "영식" },
-        "The Omega Protocol": { name: "절 오메가 검증전", cat: "절" },
-        "Dragonsong's Reprise": { name: "절 용시전쟁", cat: "절" },
-        "The Unending Coil of Bahamut": { name: "절 바하무트", cat: "절" },
-        "The Weapon's Refrain": { name: "절 알테마", cat: "절" },
-        "The Epic of Alexander": { name: "절 알렉산더", cat: "절" },
-        "Valigarmanda": { name: "극 바리 가르만다", cat: "극" },
-        "Zoraal Ja": { name: "극 조라 자", cat: "극" }
+    // ffxiv-datamining-ko 기반 한국어 명칭 매핑 (2026 최신)
+    const bossDB = {
+        // [7.2] 절 레이드
+        "Futures Rewritten (Ultimate)": { name: "절 또 하나의 미래", cat: "절" },
+        // [7.2] 극 토벌전
+        "The Minstrel's Ballad: Enuo": { name: "극 에누오", cat: "극" },
+        // [7.2] 아르카디아 가희 라이트헤비편: 헤비급
+        "The M12": { name: "라이트헤비 4층 (헤비급)", cat: "영식" },
+        "The M11": { name: "라이트헤비 3층 (헤비급)", cat: "영식" },
+        "The M10": { name: "라이트헤비 2층 (헤비급)", cat: "영식" },
+        "The M9": { name: "라이트헤비 1층 (헤비급)", cat: "영식" },
+        // [7.0] 아르카디아 가희 라이트헤비편: 라이트헤비급
+        "The M4": { name: "라이트헤비 4층", cat: "영식" },
+        "The M3": { name: "라이트헤비 3층", cat: "영식" },
+        "The M2": { name: "라이트헤비 2층", cat: "영식" },
+        "The M1": { name: "라이트헤비 1층", cat: "영식" },
+        // 레거시
+        "The Omega Protocol": { name: "절 오메가", cat: "절" },
+        "Dragonsong's Reprise": { name: "절 용시전쟁", cat: "절" }
     };
 
-    const jobGroup = {
+    const jobIcons = {
         Tank: ['Paladin', 'Warrior', 'DarkKnight', 'Gunbreaker'],
         Healer: ['WhiteMage', 'Scholar', 'Astrologian', 'Sage'],
         Dps: ['Monk', 'Dragoon', 'Ninja', 'Samurai', 'Reaper', 'Bard', 'Machinist', 'Dancer', 'BlackMage', 'Summoner', 'RedMage', 'Pictomancer', 'Viper']
     };
 
-    let allFightsData = [];
+    let fights = [];
 
-    window.onload = function() {
+    window.onload = () => {
         const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
         if(saved) {
             document.getElementById('client-id').value = saved.id || '';
@@ -138,11 +126,10 @@
             });
             const { access_token } = await tokenRes.json();
 
-            // Complexity를 위해 limit를 15로 더 줄였습니다.
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
-                        recentReports(limit: 15) { 
+                        recentReports(limit: 12) { 
                             data {
                                 code
                                 masterData { actors(type: "Player") { id name icon } }
@@ -161,21 +148,18 @@
 
             const result = await res.json();
             if (result.errors) throw new Error(result.errors[0].message);
-            processData(result.data.characterData.character.recentReports.data);
-        } catch (e) {
-            document.getElementById('main-content').innerHTML = `<div class="card">오류: ${e.message}</div>`;
-        }
-    }
-
-    function processData(reports) {
-        allFightsData = [];
-        reports.forEach(report => {
-            (report.fights || []).filter(f => f.encounterID !== 0).forEach(fight => {
-                const info = bossNameMap[fight.name] || { name: fight.name, cat: "기타" };
-                allFightsData.push({ ...fight, reportCode: report.code, actors: report.masterData.actors, korName: info.name, category: info.cat });
+            
+            fights = [];
+            result.data.characterData.character.recentReports.data.forEach(r => {
+                r.fights.filter(f => f.encounterID !== 0).forEach(f => {
+                    const db = bossDB[f.name] || { name: f.name, cat: "기타" };
+                    fights.push({ ...f, reportCode: r.code, actors: r.masterData.actors, korName: db.name, category: db.cat });
+                });
             });
-        });
-        render('절');
+            render('절');
+        } catch (e) {
+            document.getElementById('main-content').innerHTML = `<div class="card" style="color:var(--wipe)">오류: ${e.message}</div>`;
+        }
     }
 
     function filterTab(btn, cat) {
@@ -184,51 +168,39 @@
         render(cat);
     }
 
-    function render(targetCat) {
+    function render(cat) {
         const container = document.getElementById('main-content');
-        const filtered = allFightsData.filter(f => f.category === targetCat);
-        const clears = filtered.filter(f => f.kill);
-        const wipes = filtered.filter(f => !f.kill);
+        const list = fights.filter(f => f.category === cat);
+        const clears = list.filter(f => f.kill);
+        const wipes = list.filter(f => !f.kill);
 
         let html = "";
-        if(clears.length > 0) { html += `<div class="group-header">CLEAR</div>` + clears.map(f => logCard(f)).join(''); }
-        if(wipes.length > 0) { html += `<div class="group-header">WIPE (PROGRESS)</div>` + wipes.map(f => logCard(f)).join(''); }
+        if(clears.length > 0) html += `<div class="group-header">CLEAR</div>` + clears.map(f => logItem(f)).join('');
+        if(wipes.length > 0) html += `<div class="group-header">WIPE (PROGRESS)</div>` + wipes.map(f => logItem(f)).join('');
         
         container.innerHTML = html || `<div class="card" style="text-align:center; color:var(--sub)">기록이 없습니다.</div>`;
     }
 
-    function logCard(f) {
-        const memo = localStorage.getItem('m_' + f.reportCode + f.id) || '';
-        const progress = f.kill ? `<span class="progress-clear">✅ CLEAR</span>` : `<span class="progress-wipe">${Math.floor(100 - (f.fightPercentage/100))}%</span>`;
-        
+    function logItem(f) {
+        const prog = f.kill ? `<span style="color:var(--clear)">✅ CLEAR</span>` : `<span style="color:var(--wipe)">${Math.floor(100 - (f.fightPercentage/100))}%</span>`;
         const party = (f.friendlyPlayers || []).map(pId => {
             const a = f.actors.find(x => x.id === pId);
-            if(!a || a.name === "Limit Break" || a.name === "Multiple Players") return null;
-            const cls = jobGroup.Tank.includes(a.icon) ? 'job-tank' : jobGroup.Healer.includes(a.icon) ? 'job-healer' : 'job-dps';
-            return `<div class="player-item"><img src="https://assets.rpglogs.com/img/ff/icons/${a.icon}.png" class="job-icon"><div class="${cls}">${a.name}</div></div>`;
+            if(!a || a.name === "Limit Break") return null;
+            const jobClass = jobIcons.Tank.includes(a.icon) ? 'job-tank' : jobIcons.Healer.includes(a.icon) ? 'job-healer' : 'job-dps';
+            return `<div class="player-item"><img src="https://assets.rpglogs.com/img/ff/icons/${a.icon}.png" class="job-icon"><div class="${jobClass}">${a.name}</div></div>`;
         }).filter(x => x).slice(0, 8).join('');
 
         return `
             <div class="log-card ${f.kill ? 'is-clear' : 'is-wipe'}">
-                <div class="log-header"><b>${f.korName}</b> ${progress}</div>
+                <div class="log-header"><b>${f.korName}</b> <span>${prog}</span></div>
                 <div style="padding:15px;">
                     <div class="party-grid">${party}</div>
-                    <div class="memo-area">
-                        <input type="text" id="in-${f.reportCode}${f.id}" value="${memo}" placeholder="진행 단계 또는 메모">
-                        <button class="btn-save-memo" onclick="saveMemo('${f.reportCode}${f.id}')">저장</button>
-                    </div>
-                    <div style="margin-top:10px; display:flex; justify-content:space-between; font-size:11px;">
+                    <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between;">
                         <span style="color:var(--sub)">${f.reportCode}</span>
-                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">상세 로그 ↗</a>
+                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">로그 분석 ↗</a>
                     </div>
                 </div>
             </div>`;
-    }
-
-    function saveMemo(id) {
-        const val = document.getElementById('in-' + id).value;
-        localStorage.setItem('m_' + id, val);
-        alert("메모가 저장되었습니다.");
     }
 </script>
 </body>
