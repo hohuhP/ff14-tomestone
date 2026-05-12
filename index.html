@@ -3,69 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FFLogs 개별 전투 리포트</title>
+    <title>FFLogs 전투 분석기</title>
     <style>
         :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
         .container { width: 100%; max-width: 700px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         
-        .log-card { background: #000; border-radius: 10px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; border-left: 4px solid #333; }
+        .log-card { background: #000; border-radius: 10px; border: 1px solid #333; margin-bottom: 15px; overflow: hidden; border-left: 4px solid #444; }
         .log-card.is-clear { border-left-color: var(--clear); }
-        .log-card.is-wipe { border-left-color: var(--wipe); }
-
         .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
-        .status-badge { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        
+        .status-badge { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .status-clear { background: var(--clear); color: white; }
         .status-wipe { background: var(--wipe); color: white; }
         
         .log-body { padding: 15px; }
-        
-        /* 8인 파티원 그리드 */
         .party-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: #0a0a0a; padding: 10px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #222; }
-        .player-item { font-size: 12px; color: #bbb; display: flex; align-items: center; gap: 5px; }
+        .player-item { font-size: 12px; color: #bbb; }
         .player-item.is-me { color: var(--primary); font-weight: bold; }
-        .player-item::before { content: "•"; color: #444; }
 
         .gear-row { display: flex; gap: 8px; margin-bottom: 12px; }
-        input { background: #111; border: 1px solid var(--border); color: white; padding: 8px 12px; border-radius: 6px; font-size: 13px; flex: 1; outline: none; }
-        input:focus { border-color: var(--primary); }
+        input { background: #111; border: 1px solid var(--border); color: white; padding: 8px 12px; border-radius: 6px; font-size: 13px; flex: 1; }
         
-        button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.2s; }
+        button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; }
         .btn-save { background: #2d3748; color: var(--text); }
-        .btn-save:hover { background: var(--primary); }
         .btn-link { color: var(--primary); text-decoration: none; font-size: 12px; font-weight: bold; }
-
-        .tab-menu { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { background: none; border: 1px solid var(--border); color: var(--sub); cursor: pointer; padding: 8px 16px; border-radius: 6px; }
-        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .error-box { text-align: center; padding: 30px; border: 1px solid var(--wipe); border-radius: 12px; background: #1a1010; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="tab-menu">
-        <button class="tab-btn active" onclick="location.reload()">새로고침</button>
-        <button class="tab-btn" onclick="toggleSettings()">설정 변경</button>
-    </div>
-
-    <div id="section-settings" class="card" style="display: none;">
-        <h3>⚙️ FFLogs API 설정</h3>
-        <input type="text" id="client-id" placeholder="Client ID" style="width:100%; margin-bottom:10px;">
-        <input type="password" id="client-secret" placeholder="Client Secret" style="width:100%; margin-bottom:10px;">
-        <input type="text" id="char-name" placeholder="캐릭터 이름" style="width:100%; margin-bottom:10px;">
-        <select id="char-server" style="background:#000; color:white; width:100%; padding:10px; border-radius:6px; border:1px solid var(--border);">
-            <option value="Carbuncle">카벙클</option>
-            <option value="Chocobo">초코보</option>
-            <option value="Moogle">모그리</option>
-            <option value="Tonberry">톤베리</option>
-            <option value="Fenrir">펜리르</option>
-        </select>
-        <button style="background:var(--primary); color:white; width:100%; margin-top:15px; padding:12px;" onclick="saveSettings()">설정 저장 및 적용</button>
-    </div>
-
     <div id="main-content">
-        <p style="text-align:center; color:var(--sub); margin-top:50px;">FFLogs에서 데이터를 불러오고 있습니다...</p>
+        <p style="text-align:center; color:var(--sub); margin-top:50px;">데이터를 불러오는 중...</p>
     </div>
 </div>
 
@@ -73,28 +45,11 @@
     window.onload = function() {
         const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
         if(!saved) {
-            document.getElementById('section-settings').style.display = 'block';
-            document.getElementById('main-content').innerHTML = '';
+            document.getElementById('main-content').innerHTML = "<p style='text-align:center;'>설정 정보가 없습니다. (ID/Secret/캐릭터명 등)</p>";
         } else {
             fetchData(saved);
         }
     };
-
-    function toggleSettings() {
-        const s = document.getElementById('section-settings');
-        s.style.display = s.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function saveSettings() {
-        const cfg = {
-            id: document.getElementById('client-id').value.trim(),
-            secret: document.getElementById('client-secret').value.trim(),
-            name: document.getElementById('char-name').value.trim(),
-            server: document.getElementById('char-server').value
-        };
-        localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
-        location.reload();
-    }
 
     async function fetchData(saved) {
         try {
@@ -104,7 +59,8 @@
                 body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
             });
             const tokenData = await tokenRes.json();
-            if (!tokenData.access_token) throw new Error("API 인증 실패 (ID/Secret 확인)");
+            const token = tokenData.access_token;
+            if(!token) throw new Error("API 인증 실패. ID/Secret을 확인하세요.");
 
             const query = `query {
                 characterData {
@@ -123,44 +79,43 @@
 
             const res = await fetch('https://www.fflogs.com/api/v2/client', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${tokenData.access_token}`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query })
             });
 
             const result = await res.json();
-            if (!result.data || !result.data.characterData.character) {
-                throw new Error("캐릭터 정보를 찾을 수 없습니다.");
+
+            // ⚠️ 여기서 오류가 날 확률이 높음: characterData가 null인 경우 체크
+            if (!result.data || !result.data.characterData || !result.data.characterData.character) {
+                console.log("Full Result:", result); // 디버깅용
+                throw new Error(`'${saved.name}' 캐릭터를 찾을 수 없습니다. 이름/서버(영문)를 확인하세요.`);
             }
 
-            const allReports = result.data.characterData.character.recentReports.data;
+            const reports = result.data.characterData.character.recentReports.data || [];
             const processedFights = [];
 
-            allReports.forEach(report => {
+            reports.forEach(report => {
                 if (!report.fights) return;
                 report.fights.forEach(fight => {
-                    // 전투 참여 인원이 8명인 것만 추출
+                    // 8인 전투만 필터링 (친화적 플레이어 수가 딱 8명인 경우)
                     if (fight.friendlyPlayers && fight.friendlyPlayers.length === 8) {
                         const partyNames = fight.friendlyPlayers.map(pId => {
                             const actor = report.masterData.actors.find(a => a.id === pId);
                             return actor ? actor.name : "Unknown";
                         });
-
-                        processedFights.push({
-                            reportCode: report.code,
-                            title: report.title,
-                            fight: fight,
-                            party: partyNames
-                        });
+                        processedFights.push({ reportCode: report.code, title: report.title, fight, party: partyNames });
                     }
                 });
             });
 
             renderFights(processedFights, saved.name);
         } catch (e) {
+            console.error(e);
             document.getElementById('main-content').innerHTML = `
-                <div style="text-align:center; padding:20px; color:var(--wipe);">
-                    <p><b>⚠️ 오류 발생</b></p>
-                    <p style="font-size:13px; color:var(--sub);">${e.message}</p>
+                <div class="error-box">
+                    <p style="color:var(--wipe); font-weight:bold;">⚠️ 데이터 로딩 실패</p>
+                    <p style="font-size:13px; color:var(--sub); margin:10px 0;">${e.message}</p>
+                    <button onclick="location.reload()" style="background:var(--primary); color:white; padding:8px 20px; border-radius:5px;">다시 시도</button>
                 </div>`;
         }
     }
@@ -176,16 +131,15 @@
         fights.forEach(item => {
             const { reportCode, title, fight, party } = item;
             const uniqueId = `${reportCode}_${fight.id}`;
-            const isKill = fight.kill;
             const savedData = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
 
             const card = document.createElement('div');
-            card.className = `log-card ${isKill ? 'is-clear' : 'is-wipe'}`;
+            card.className = `log-card ${fight.kill ? 'is-clear' : ''}`;
             card.innerHTML = `
                 <div class="log-header">
-                    <span class="status-badge ${isKill ? 'status-clear' : 'status-wipe'}">${isKill ? 'CLEAR' : 'WIPE'}</span>
+                    <span class="status-badge ${fight.kill ? 'status-clear' : 'status-wipe'}">${fight.kill ? 'CLEAR' : 'WIPE'}</span>
                     <span style="font-size:12px; font-weight:bold;">${title}</span>
-                    <span style="font-size:11px; color:var(--sub); font-family:monospace;">${reportCode}#${fight.id}</span>
+                    <span style="font-size:11px; color:var(--sub);">${reportCode}#${fight.id}</span>
                 </div>
                 <div class="log-body">
                     <div class="party-grid">
@@ -196,7 +150,7 @@
                         <input type="text" id="m-${uniqueId}" value="${savedData.m}" placeholder="세팅 메모">
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <a href="https://ko.fflogs.com/reports/${reportCode}#fight=${fight.id}" target="_blank" class="btn-link">전투 분석 보기 ↗</a>
+                        <a href="https://ko.fflogs.com/reports/${reportCode}#fight=${fight.id}" target="_blank" class="btn-link">상세 보기 ↗</a>
                         <button class="btn-save" onclick="saveMemo('${uniqueId}')">저장</button>
                     </div>
                 </div>
@@ -206,10 +160,10 @@
     }
 
     function saveMemo(id) {
-        const wVal = document.getElementById('w-' + id).value;
-        const mVal = document.getElementById('m-' + id).value;
-        localStorage.setItem('memo_' + id, JSON.stringify({ w: wVal, m: mVal }));
-        alert("성공적으로 저장되었습니다.");
+        const w = document.getElementById('w-' + id).value;
+        const m = document.getElementById('m-' + id).value;
+        localStorage.setItem('memo_' + id, JSON.stringify({ w, m }));
+        alert("저장되었습니다!");
     }
 </script>
 </body>
