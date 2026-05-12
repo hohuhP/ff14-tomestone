@@ -86,7 +86,6 @@
 
     async function fetchData(saved) {
         try {
-            // 1. 토큰 발급
             const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -96,7 +95,7 @@
             if (!tokenRes.ok) throw new Error("API 인증 실패 (Client ID/Secret 확인)");
             const { access_token } = await tokenRes.json();
 
-            // 2. 캐릭터 데이터 쿼리
+            // 쿼리 수정: "boss" 대신 "encounterID" 사용
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
@@ -104,7 +103,7 @@
                             data {
                                 code title
                                 masterData { actors(type: "Player") { id name icon server type } }
-                                fights { id kill name friendlyPlayers boss difficulty }
+                                fights { id kill name friendlyPlayers encounterID difficulty }
                             }
                         }
                     }
@@ -119,7 +118,6 @@
 
             const result = await res.json();
             
-            // 상세 에러 디버깅
             if (result.errors) {
                 console.error("FFLogs API 상세 오류:", result.errors);
                 throw new Error("FFLogs API 오류: " + result.errors[0].message);
@@ -141,7 +139,8 @@
         const container = document.getElementById('main-content');
         container.innerHTML = reports.flatMap(report => {
             const players = report.masterData.actors;
-            return (report.fights || []).filter(f => f.boss !== 0).reverse().map(fight => {
+            // 필터링 수정: "boss" 대신 "encounterID"가 0이 아닌 것 필터링
+            return (report.fights || []).filter(f => f.encounterID !== 0).reverse().map(fight => {
                 const korName = bossNameMap[fight.name] || fight.name;
                 const uniqueId = `${report.code}_${fight.id}`;
                 const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
