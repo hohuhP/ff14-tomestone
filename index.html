@@ -16,10 +16,17 @@
         .log-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
         
         .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #0a0a0a; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .player-item { font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: #161616; border-radius: 6px; gap: 5px; min-height: 50px; }
         
-        .job-icon { width: 20px; height: 20px; border-radius: 3px; }
-        .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
+        /* 캐릭터 링크 스타일 */
+        .player-link { text-decoration: none; color: inherit; display: contents; }
+        .player-item { 
+            font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            padding: 8px 4px; background: #161616; border-radius: 6px; gap: 5px; min-height: 50px; cursor: pointer; transition: background 0.2s;
+        }
+        .player-item:hover { background: #252525; }
+        
+        .job-icon { width: 22px; height: 22px; border-radius: 3px; }
+        .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; font-size: 10px; }
 
         .job-tank { color: #2d71c1; }
         .job-healer { color: #467837; }
@@ -63,8 +70,7 @@
 
 <script>
     const bossNameMap = {
-        "The Blossom of the Abyss": "나락의 꽃",
-        "Lahabrea": "라하브레아",
+        "The Blossom of the Abyss": "나락의 꽃", "Lahabrea": "라하브레아",
         "P1S": "변옥 1층", "P2S": "변옥 2층", "P3S": "변옥 3층", "P4S": "변옥 4층",
         "P5S": "연옥 1층", "P6S": "연옥 2층", "P7S": "연옥 3층", "P8S": "연옥 4층",
         "P9S": "천옥 1층", "P10S": "천옥 2층", "P11S": "천옥 3층", "P12S": "천옥 4층"
@@ -112,7 +118,7 @@
                         recentReports(limit: 20) { 
                             data {
                                 code title
-                                masterData { actors(type: "Player") { id name icon type } }
+                                masterData { actors(type: "Player") { id name icon server type } }
                                 fights { id kill name friendlyPlayers boss difficulty }
                             }
                         }
@@ -136,8 +142,7 @@
         if (jobGroup.Tank.includes(iconName)) group = 'job-tank';
         else if (jobGroup.Healer.includes(iconName)) group = 'job-healer';
         else if (jobGroup.Dps.includes(iconName)) group = 'job-dps';
-        const iconUrl = `https://assets.rpglogs.com/img/ff/icons/${iconName}.png`;
-        return { group, iconUrl };
+        return { group, iconUrl: `https://assets.rpglogs.com/img/ff/icons/${iconName}.png` };
     }
 
     function renderFights(reports, saved) {
@@ -152,22 +157,25 @@
                 const uniqueId = `${report.code}_${fight.id}`;
                 const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
 
-                // 실제 플레이어(Limit Break 제외)만 필터링
                 const partyHtml = (fight.friendlyPlayers || []).map(pId => {
                     const actor = report.masterData.actors.find(a => a.id === pId);
-                    // actor가 없거나 type이 "Player"가 아니면(리미트 브레이크 등) 건너뜀
                     if(!actor || actor.type !== "Player") return null;
                     
                     const isMe = actor.name === saved.name;
                     const { group, iconUrl } = getJobInfo(actor.icon);
                     
+                    // 프로필 링크 생성 (캐릭터명/서버/KR)
+                    const profileLink = `https://ko.fflogs.com/character/kr/${actor.server || saved.server}/${actor.name}`;
+                    
                     return `
-                        <div class="player-item">
-                            <img src="${iconUrl}" class="job-icon" onerror="this.style.visibility='hidden'">
-                            <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+saved.myColor+'; font-weight:bold;' : ''}">
-                                ${actor.name}
+                        <a href="${profileLink}" target="_blank" class="player-link" title="${actor.name} 프로필 보기">
+                            <div class="player-item">
+                                <img src="${iconUrl}" class="job-icon" onerror="this.style.visibility='hidden'">
+                                <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+saved.myColor+'; font-weight:bold;' : ''}">
+                                    ${actor.name}
+                                </div>
                             </div>
-                        </div>`;
+                        </a>`;
                 }).filter(html => html !== null).slice(0, 8).join('');
 
                 const card = document.createElement('div');
