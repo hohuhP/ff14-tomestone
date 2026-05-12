@@ -1,49 +1,77 @@
-// ffxiv-datamining-ko 기반 한국어 공식 명칭 매핑
-const bossDB = [
-    // [절] 레이드
-    { key: "Futures Rewritten", name: "절 또 하나의 미래", cat: "절" },
-    { key: "Fatebreaker", name: "절 또 하나의 미래", cat: "절" },
-    { key: "Usurper of Frost", name: "절 또 하나의 미래", cat: "절" },
-    { key: "Eden Prime", name: "절 또 하나의 미래", cat: "절" },
+<script>
+    /**
+     * ffxiv-datamining-ko 기반 한국어 공식 명칭
+     */
+    const bossDB = [
+        // [절] 절 또 하나의 미래 (Futures Rewritten)
+        // FFLogs에서 각 페이즈 보스명으로 기록되므로 최우선으로 매핑
+        { key: "Fatebreaker", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Usurper of Frost", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Eden Prime", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Oracle of Darkness", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Futures Rewritten", name: "절 또 하나의 미래", cat: "절" },
 
-    // [영식] 아르카디아 가희 라이트헤비편: 헤비급 (M9-M12)
-    // 데이터마이닝 CSV 기준 공식 명칭 적용
-    { key: "M12", name: "라이트헤비 4층 (헤비급)", cat: "영식" },
-    { key: "M11", name: "라이트헤비 3층 (헤비급)", cat: "영식" },
-    { key: "M10", name: "라이트헤비 2층 (헤비급)", cat: "영식" },
-    { key: "M9", name: "라이트헤비 1층 (헤비급)", cat: "영식" },
+        // [영식] 아르카디아 선수권: 헤비급 (M9-M12)
+        { key: "M12", name: "아르카디아 선수권: 헤비급 4", cat: "영식" },
+        { key: "M11", name: "아르카디아 선수권: 헤비급 3", cat: "영식" },
+        { key: "M10", name: "아르카디아 선수권: 헤비급 2", cat: "영식" },
+        { key: "M9", name: "아르카디아 선수권: 헤비급 1", cat: "영식" },
 
-    // [영식] 아르카디아 가희 라이트헤비편: 라이트헤비급 (M1-M4)
-    { key: "M4", name: "라이트헤비 4층", cat: "영식" },
-    { key: "M3", name: "라이트헤비 3층", cat: "영식" },
-    { key: "M2", name: "라이트헤비 2층", cat: "영식" },
-    { key: "M1", name: "라이트헤비 1층", cat: "영식" },
+        // [영식] 아르카디아 선수권: 라이트헤비급 (M1-M4)
+        { key: "M4", name: "아르카디아 선수권: 라이트헤비급 4", cat: "영식" },
+        { key: "M3", name: "아르카디아 선수권: 라이트헤비급 3", cat: "영식" },
+        { key: "M2", name: "아르카디아 선수권: 라이트헤비급 2", cat: "영식" },
+        { key: "M1", name: "아르카디아 선수권: 라이트헤비급 1", cat: "영식" },
 
-    // [극] 토벌전
-    { key: "Enuo", name: "극 에누오 토벌전", cat: "극" }
-];
+        // [극] 최신 토벌전
+        { key: "Enuo", name: "극 에누오 토벌전", cat: "극" }
+    ];
 
-function logItem(f) {
-    // 2900 -> 29.0% 변환 (image_819957.png의 잔여 체력 표기 방식)
-    const rawPercent = f.fightPercentage || 0;
-    const wipePercent = (rawPercent / 100).toFixed(1);
+    function logItem(f) {
+        // 1. 퍼센트 계산 로직 (image_819957.png의 29%와 동일하게 출력)
+        // API의 fightPercentage 수치를 100으로 나누고 내림 처리하여 잔여 체력 % 추출
+        let wipePercent = 0;
+        if (f.fightPercentage !== undefined && f.fightPercentage !== null) {
+            wipePercent = Math.floor(f.fightPercentage / 100);
+        }
 
-    const prog = f.kill 
-        ? `<span style="color:var(--clear); font-weight:bold;">✅ CLEAR</span>` 
-        : `<span style="color:var(--wipe); font-weight:bold;">WIPE ${wipePercent}%</span>`;
+        // 2. 명칭 매핑 로직 (Includes 기반)
+        let displayName = f.name;
+        let category = "기타";
+        
+        for (const boss of bossDB) {
+            if (f.name.includes(boss.key)) {
+                displayName = boss.name;
+                category = boss.cat;
+                break; 
+            }
+        }
 
-    // 영문 보스명을 한국어 공식 명칭으로 치환
-    const info = bossDB.find(b => f.name.includes(b.key)) || { name: f.name, cat: "기타" };
+        const prog = f.kill 
+            ? `<span style="color:var(--clear); font-weight:bold;">✅ CLEAR</span>` 
+            : `<span style="color:var(--wipe); font-weight:bold;">WIPE ${wipePercent}%</span>`;
 
-    return `
-        <div class="log-card ${f.kill ? 'is-clear' : 'is-wipe'}">
-            <div class="log-header"><b>${info.name}</b> <span>${prog}</span></div>
-            <div style="padding:15px;">
-                <div class="party-grid">${/* 파티원 렌더링 로직 */}</div>
-                <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between;">
-                    <span style="color:var(--sub)">CODE: ${f.reportCode}</span>
-                    <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">리포트 열기 ↗</a>
+        // 파티원 아이콘 및 직업 렌더링 로직 (이전과 동일)
+        const party = (f.friendlyPlayers || []).map(pId => {
+            const a = f.actors.find(x => x.id === pId);
+            if(!a || a.name === "Limit Break" || a.name === "Multiple Players") return null;
+            const jobClass = jobIcons.Tank.includes(a.icon) ? 'job-tank' : jobIcons.Healer.includes(a.icon) ? 'job-healer' : 'job-dps';
+            return `<div class="player-item"><img src="https://assets.rpglogs.com/img/ff/icons/${a.icon}.png" class="job-icon"><div class="${jobClass}">${a.name.split(' ')[0]}</div></div>`;
+        }).filter(x => x).slice(0, 8).join('');
+
+        return `
+            <div class="log-card ${f.kill ? 'is-clear' : 'is-wipe'}">
+                <div class="log-header">
+                    <b>${displayName}</b> 
+                    <span>${prog}</span>
                 </div>
-            </div>
-        </div>`;
-}
+                <div style="padding:15px;">
+                    <div class="party-grid">${party}</div>
+                    <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between; color:var(--sub);">
+                        <span>CODE: ${f.reportCode}</span>
+                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">리포트 열기 ↗</a>
+                    </div>
+                </div>
+            </div>`;
+    }
+</script>
