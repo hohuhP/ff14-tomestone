@@ -2,225 +2,193 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFLogs KR Report Manager</title>
+    <title>FFXIV Tactical Log & Gear</title>
     <style>
-        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; --ana: #3b82f6; }
-        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { width: 100%; max-width: 700px; }
-        .settings-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box; outline: none; }
-        .btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .filter-container { margin-bottom: 20px; }
-        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; border-left: 5px solid #444; overflow: hidden; }
-        .log-card.is-clear { border-left-color: var(--clear); }
-        .log-card.is-wipe { border-left-color: var(--wipe); }
-        .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
-        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; }
-        .player-link { text-decoration: none; display: block; transition: transform 0.1s; color: inherit; }
-        .player-link:hover { transform: translateY(-2px); }
-        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; text-align: center; }
-        .job-icon { width: 18px; height: 18px; border-radius: 2px; }
-        .link-group { margin-top: 12px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #222; padding-top: 10px; }
-        .ext-link { text-decoration: none; font-weight: bold; margin-left: 10px; }
-        .status-msg { text-align: center; padding: 50px; color: var(--sub); }
+        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        
+        /* 상단 탭 */
+        .nav-tabs { display: flex; gap: 10px; margin: 20px 0; position: sticky; top: 0; z-index: 100; background: var(--bg); padding: 10px; width: 100%; justify-content: center; }
+        .tab-btn { background: var(--card); border: 1px solid var(--border); color: var(--sub); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .container { width: 100%; max-width: 900px; padding: 0 20px 50px 20px; }
+        .hidden { display: none; }
+
+        /* 장비 슬롯 디자인 */
+        .gear-container { background: var(--card); border-radius: 15px; padding: 25px; border: 1px solid var(--border); }
+        .gear-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .gear-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .gear-slot { background: #111; padding: 12px; border-radius: 10px; border: 1px solid #333; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; }
+        .gear-slot:hover { border-color: var(--primary); }
+        .slot-label { font-size: 11px; color: var(--sub); margin-bottom: 2px; }
+        .item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .materia-container { display: flex; gap: 3px; margin-top: 5px; }
+        .materia-slot { width: 7px; height: 7px; border-radius: 50%; background: #222; border: 1px solid #444; }
+        .materia-slot.active { background: var(--primary); box-shadow: 0 0 4px var(--primary); border: none; }
+
+        /* 로그 카드 */
+        .log-card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; border-left: 5px solid #444; }
+        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 15px; }
+        .player-btn { background: #0a0a0a; border: 1px solid #222; border-radius: 6px; padding: 8px; text-align: center; cursor: pointer; }
+        .player-btn:hover { border-color: var(--primary); }
+        
+        .save-banner { background: var(--clear); color: black; font-weight: bold; text-align: center; padding: 5px; border-radius: 4px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="settings-card">
-        <div class="settings-grid">
-            <input type="text" id="client-id" placeholder="FFLogs Client ID">
-            <input type="password" id="client-secret" placeholder="Client Secret">
-            <input type="text" id="char-name" placeholder="캐릭터 이름">
-            <select id="char-server">
-                <option value="Carbuncle">카벙클</option>
-                <option value="Chocobo">초코보</option>
-                <option value="Moogle">모그리</option>
-                <option value="Tonberry">톤베리</option>
-                <option value="Fenrir">펜리르</option>
-            </select>
+<div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('log')">전투 기록</button>
+    <button class="tab-btn" id="gear-tab-btn" onclick="switchTab('gear')">장비/마테 설정</button>
+</div>
+
+<!-- 로그 섹션 -->
+<div id="log-section" class="container">
+    <div id="log-list">
+        <!-- 로그 데이터 로드 후 여기에 플레이어 버튼들이 생성됨 -->
+        <p style="text-align: center; color: var(--sub);">로그 데이터를 불러온 뒤 파티원을 클릭해 장비를 설정하세요.</p>
+    </div>
+</div>
+
+<!-- 장비 설정 섹션 -->
+<div id="gear-section" class="container hidden">
+    <div class="gear-container">
+        <div class="gear-header">
+            <div>
+                <h3 id="current-target-name" style="margin:0;">플레이어 미선택</h3>
+                <span id="current-fight-info" style="font-size:12px; color:var(--sub);">로그를 선택해주세요</span>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size:20px; font-weight:bold; color:var(--primary);">Avg. iLvl <span id="avg-ilvl">0</span></div>
+                <button onclick="saveGearData()" style="background:var(--primary); border:none; color:white; padding:5px 15px; border-radius:4px; cursor:pointer; margin-top:5px;">이 세팅 저장</button>
+            </div>
         </div>
-        <button class="btn-main" onclick="saveSettings()">본인 로그 데이터 갱신</button>
-    </div>
 
-    <div class="filter-container">
-        <select id="category-select" onchange="render(this.value)">
-            <option value="전체">전체 리포트</option>
-            <option value="절">절 레이드</option>
-            <option value="극">극 토벌전</option>
-            <option value="영식">영식</option>
-            <option value="기타">기타</option>
-        </select>
+        <div class="gear-grid" id="gear-grid-display">
+            <!-- 10개 슬롯 (머리, 상의, 장갑, 하의, 신발, 귀걸이, 목걸이, 팔찌, 반지1, 반지2) -->
+        </div>
+        <div id="save-msg" class="save-banner">장비 설정이 저장되었습니다!</div>
     </div>
-
-    <div id="main-content"></div>
 </div>
 
 <script>
-    const bossDB = [
-        // 절 레이드
-        { key: "Fatebreaker", name: "절 또 하나의 미래", cat: "절" },
-        { key: "Eden Prime", name: "절 또 하나의 미래", cat: "절" },
-        { key: "Oracle", name: "절 또 하나의 미래", cat: "절" },
-        { key: "Final Omega", name: "절 오메가", cat: "절" },
-        { key: "Dragon-king", name: "절 용시전쟁", cat: "절" },
-        { key: "Perfect Alexander", name: "절 알렉산더", cat: "절" },
-        { key: "Ultima Weapon", name: "절 알테마", cat: "절" },
-        { key: "Bahamut Prime", name: "절 바하무트", cat: "절" },
-        
-        // 극 토벌전
-        { key: "Zereneia", name: "극 제레니아", cat: "극" },
-        { key: "Eternal Darkness", name: "극 영원한 어둠", cat: "극" },
-        { key: "Glasya Labolas", name: "극 글라시아 라볼라스", cat: "극" }
-    ];
+    const slots = ["머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지 1", "반지 2"];
+    let currentLogKey = ""; // reportCode_fightId_playerName 형식
 
-    let fights = [];
-    let currentServer = "";
-
-    window.onload = () => {
-        const saved = JSON.parse(localStorage.getItem('fflogs_mgr_cfg'));
-        if(saved) {
-            document.getElementById('client-id').value = saved.id || '';
-            document.getElementById('client-secret').value = saved.secret || '';
-            document.getElementById('char-name').value = saved.name || '';
-            document.getElementById('char-server').value = saved.server || 'Carbuncle';
-            if(saved.id && saved.name) fetchData(saved);
+    // 1. 탭 전환
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        if(tab === 'log') {
+            document.getElementById('log-section').classList.remove('hidden');
+            document.querySelector('button[onclick="switchTab(\'log\')"]').classList.add('active');
+        } else {
+            document.getElementById('gear-section').classList.remove('hidden');
+            document.getElementById('gear-tab-btn').classList.add('active');
+            renderGearSlots();
         }
-    };
+    }
 
-    function saveSettings() {
-        const cfg = {
-            id: document.getElementById('client-id').value.trim(),
-            secret: document.getElementById('client-secret').value.trim(),
-            name: document.getElementById('char-name').value.trim(),
-            server: document.getElementById('char-server').value
+    // 2. 특정 로그의 파티원 클릭 시 실행
+    function inspectPlayer(playerName, reportCode, fightId, bossName) {
+        currentLogKey = `${reportCode}_${fightId}_${playerName}`;
+        document.getElementById('current-target-name').innerText = playerName;
+        document.getElementById('current-fight-info').innerText = `${bossName} (${reportCode})`;
+        
+        switchTab('gear');
+        loadGearData(); // 저장된 데이터가 있으면 불러오기
+    }
+
+    // 3. 장비 슬롯 렌더링
+    function renderGearSlots() {
+        const display = document.getElementById('gear-grid-display');
+        display.innerHTML = slots.map((slot, idx) => `
+            <div class="gear-slot" onclick="selectItem(${idx})">
+                <div style="width:32px; height:32px; background:#000; border-radius:4px;"></div>
+                <div style="flex-grow:1">
+                    <div class="slot-label">${slot}</div>
+                    <div class="item-name" id="slot-name-${idx}">장비 검색/선택</div>
+                    <div class="materia-container" id="materia-area-${idx}">
+                        ${[1,2,3,4,5].map(m => `<div class="materia-slot" id="m-dot-${idx}-${m}"></div>`).join('')}
+                    </div>
+                </div>
+                <div style="color:var(--primary); font-weight:bold; font-size:12px;">iLvl <span id="slot-ilvl-${idx}">0</span></div>
+            </div>
+        `).join('');
+    }
+
+    // 4. 데이터 저장 및 불러오기 (localStorage 활용)
+    function saveGearData() {
+        if(!currentLogKey) return alert("로그를 먼저 선택해주세요.");
+        
+        const gearSet = [];
+        let totalLvl = 0;
+
+        for(let i=0; i<10; i++) {
+            const item = {
+                name: document.getElementById(`slot-name-${i}`).innerText,
+                ilvl: parseInt(document.getElementById(`slot-ilvl-${i}`).innerText),
+                materiaCount: 2 // 예시로 2개 박힌 것으로 처리
+            };
+            gearSet.push(item);
+            totalLvl += item.ilvl;
+        }
+
+        const data = {
+            gearSet,
+            avgLvl: (totalLvl / 10).toFixed(1)
         };
-        localStorage.setItem('fflogs_mgr_cfg', JSON.stringify(cfg));
-        fetchData(cfg);
-    }
 
-    async function fetchData(cfg) {
-        const content = document.getElementById('main-content');
-        content.innerHTML = `<div class="status-msg">본인 참여 여부 확인 중...</div>`;
-        currentServer = cfg.server;
-
-        try {
-            const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `grant_type=client_credentials&client_id=${cfg.id}&client_secret=${cfg.secret}`
-            });
-            const { access_token } = await tokenRes.json();
-
-            const query = `query {
-                characterData {
-                    character(name: "${cfg.name}", serverSlug: "${cfg.server}", serverRegion: "KR") {
-                        recentReports(limit: 50) { 
-                            data {
-                                code
-                                masterData { actors(type: "Player") { id name icon } }
-                                fights { id kill name friendlyPlayers fightPercentage }
-                            }
-                        }
-                    }
-                }
-            }`;
-
-            const res = await fetch('https://www.fflogs.com/api/v2/client', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${access_token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query })
-            }).then(r => r.json());
-
-            const character = res.data.characterData.character;
-            fights = [];
-            
-            // 본인 캐릭터의 ID를 소문자 공백 제거로 찾기
-            const mySearchName = cfg.name.toLowerCase().replace(/\s/g, "");
-
-            character.recentReports.data.forEach(r => {
-                const actors = r.masterData.actors;
-                // 현재 리포트 안에서 나의 ID 찾기
-                const me = actors.find(a => a.name.toLowerCase().replace(/\s/g, "") === mySearchName);
-                if(!me) return; // 리포트 전체에 내가 없으면 패스
-
-                r.fights.forEach(f => {
-                    // 1. Trash 제외
-                    if(f.name.includes("Trash")) return;
-                    // 2. 해당 전투(fight)의 참여 인원 중 나의 ID가 있는지 확인
-                    if(!f.friendlyPlayers.includes(me.id)) return;
-
-                    let info = { name: f.name, cat: "기타" };
-                    for (const b of bossDB) {
-                        if (f.name.includes(b.key)) { info = b; break; }
-                    }
-
-                    fights.push({ 
-                        ...f, 
-                        reportCode: r.code, 
-                        actors: actors, 
-                        korName: info.name, 
-                        category: info.cat 
-                    });
-                });
-            });
-
-            render(document.getElementById('category-select').value);
-        } catch (e) {
-            content.innerHTML = `<div class="status-msg" style="color:var(--wipe);">데이터 로드 실패</div>`;
-        }
-    }
-
-    function render(cat) {
-        const container = document.getElementById('main-content');
-        const list = cat === "전체" ? fights : fights.filter(f => f.category === cat);
+        localStorage.setItem(`gear_${currentLogKey}`, JSON.stringify(data));
         
-        if(list.length === 0) {
-            container.innerHTML = `<div class="status-msg">참여한 기록이 없습니다.</div>`;
-            return;
+        const msg = document.getElementById('save-msg');
+        msg.style.display = 'block';
+        setTimeout(() => msg.style.display = 'none', 2000);
+    }
+
+    function loadGearData() {
+        const saved = localStorage.getItem(`gear_${currentLogKey}`);
+        if(saved) {
+            const data = JSON.parse(saved);
+            data.gearSet.forEach((item, i) => {
+                document.getElementById(`slot-name-${i}`).innerText = item.name;
+                document.getElementById(`slot-ilvl-${i}`).innerText = item.ilvl;
+                // 마테리아 시각화
+                for(let m=1; m<=5; m++) {
+                    const dot = document.getElementById(`m-dot-${i}-${m}`);
+                    if(m <= item.materiaCount) dot.classList.add('active');
+                    else dot.classList.remove('active');
+                }
+            });
+            document.getElementById('avg-ilvl').innerText = data.avgLvl;
+        } else {
+            // 데이터 없을 시 초기화
+            document.getElementById('avg-ilvl').innerText = "0";
+            for(let i=0; i<10; i++) {
+                document.getElementById(`slot-name-${i}`).innerText = "장비 검색/선택";
+                document.getElementById(`slot-ilvl-${i}`).innerText = "0";
+            }
         }
+    }
 
-        container.innerHTML = list.map(f => {
-            // HP 퍼센트: 10000 = 100%, 4700 = 47.0%
-            const hpLeft = f.fightPercentage / 100;
-            const displayPercent = f.kill ? "CLEAR" : hpLeft.toFixed(1) + "%";
-            
-            const party = f.friendlyPlayers.map(pId => {
-                const p = f.actors.find(a => a.id === pId);
-                // Multiple 및 빈 객체 완전 삭제
-                if(!p || p.name === "Limit Break" || p.name.toLowerCase().includes("multiple")) return '';
-                
-                const charLink = `https://ko.fflogs.com/character/kr/${currentServer}/${encodeURIComponent(p.name)}`;
-                return `
-                    <a href="${charLink}" target="_blank" class="player-link">
-                        <div class="player-item">
-                            <img src="https://assets.rpglogs.com/img/ff/icons/${p.icon}.png" class="job-icon">
-                            <div style="color:var(--sub)">${p.name.split(' ')[0]}</div>
-                        </div>
-                    </a>`;
-            }).join('');
-
-            return `
-                <div class="log-card ${f.kill ? 'is-clear' : 'is-wipe'}">
-                    <div class="log-header">
-                        <b>${f.korName}</b>
-                        <span style="font-weight:bold; color:${f.kill ? 'var(--clear)' : 'var(--wipe)'}">${displayPercent}</span>
-                    </div>
-                    <div style="padding:15px;">
-                        <div class="party-grid">${party}</div>
-                        <div class="link-group">
-                            <span style="color:#555">CODE: ${f.reportCode}</span>
-                            <div>
-                                <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" class="ext-link" style="color:var(--primary)">LOGS ↗</a>
-                                <a href="https://xivanalysis.com/fflogs/${f.reportCode}/${f.id}" target="_blank" class="ext-link" style="color:var(--ana)">ANALYSIS ↗</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        }).join('');
+    // 5. 아이템 선택 시뮬레이션 (CSV 연동 지점)
+    function selectItem(slotIdx) {
+        // 실제 구현 시 여기서 GitHub CSV 데이터를 fetch하여 검색창을 띄웁니다.
+        const fakeName = slots[slotIdx] + " 유물 장비";
+        const fakeLvl = 730;
+        
+        document.getElementById(`slot-name-${slotIdx}`).innerText = fakeName;
+        document.getElementById(`slot-ilvl-${slotIdx}`).innerText = fakeLvl;
+        
+        // 평균 템렙 실시간 갱신
+        let total = 0;
+        for(let i=0; i<10; i++) {
+            total += parseInt(document.getElementById(`slot-ilvl-${i}`).innerText);
+        }
+        document.getElementById('avg-ilvl').innerText = (total / 10).toFixed(1);
     }
 </script>
+
 </body>
 </html>
