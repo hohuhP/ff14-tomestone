@@ -17,16 +17,13 @@
         .log-card.is-wipe { border-left-color: var(--wipe); }
         .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
         .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; }
-        .player-link { text-decoration: none; display: block; transition: transform 0.1s; }
+        .player-link { text-decoration: none; display: block; transition: transform 0.1s; color: inherit; }
         .player-link:hover { transform: translateY(-2px); }
-        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; text-align: center; cursor: pointer; }
+        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; text-align: center; }
         .job-icon { width: 18px; height: 18px; border-radius: 2px; }
-        .status-msg { text-align: center; padding: 50px; color: var(--sub); font-size: 14px; }
         .link-group { margin-top: 12px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #222; padding-top: 10px; }
-        .external-links { display: flex; gap: 12px; }
-        .ext-link { text-decoration: none; font-weight: bold; }
-        .report-link { color: var(--primary); }
-        .analysis-link { color: var(--ana); }
+        .ext-link { text-decoration: none; font-weight: bold; margin-left: 10px; }
+        .status-msg { text-align: center; padding: 50px; color: var(--sub); }
     </style>
 </head>
 <body>
@@ -45,15 +42,15 @@
                 <option value="Fenrir">펜리르</option>
             </select>
         </div>
-        <button class="btn-main" id="fetch-btn" onclick="saveSettings()">모든 데이터 불러오기</button>
+        <button class="btn-main" onclick="saveSettings()">본인 로그 데이터 갱신</button>
     </div>
 
     <div class="filter-container">
         <select id="category-select" onchange="render(this.value)">
-            <option value="전체">모든 전투 (Trash 포함)</option>
+            <option value="전체">전체 리포트</option>
             <option value="절">절 레이드</option>
-            <option value="영식">영식</option>
             <option value="극">극 토벌전</option>
+            <option value="영식">영식</option>
             <option value="기타">기타</option>
         </select>
     </div>
@@ -63,19 +60,24 @@
 
 <script>
     const bossDB = [
-        { key: "Fatebreaker", name: "또 하나의 미래", cat: "절" },
-        { key: "Usurper", name: "또 하나의 미래", cat: "절" },
-        { key: "Eden Prime", name: "또 하나의 미래", cat: "절" },
-        { key: "Oracle", name: "또 하나의 미래", cat: "절" },
-        { key: "Final Omega", name: "오메가 검증전", cat: "절" },
-        { key: "Dragon-king", name: "용시전쟁", cat: "절" },
-        { key: "Perfect Alexander", name: "알렉산더", cat: "절" },
-        { key: "Ultima Weapon", name: "알테마 웨폰", cat: "절" },
-        { key: "Bahamut Prime", name: "바하무트", cat: "절" }
+        // 절 레이드
+        { key: "Fatebreaker", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Eden Prime", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Oracle", name: "절 또 하나의 미래", cat: "절" },
+        { key: "Final Omega", name: "절 오메가", cat: "절" },
+        { key: "Dragon-king", name: "절 용시전쟁", cat: "절" },
+        { key: "Perfect Alexander", name: "절 알렉산더", cat: "절" },
+        { key: "Ultima Weapon", name: "절 알테마", cat: "절" },
+        { key: "Bahamut Prime", name: "절 바하무트", cat: "절" },
+        
+        // 극 토벌전
+        { key: "Zereneia", name: "극 제레니아", cat: "극" },
+        { key: "Eternal Darkness", name: "극 영원한 어둠", cat: "극" },
+        { key: "Glasya Labolas", name: "극 글라시아 라볼라스", cat: "극" }
     ];
 
     let fights = [];
-    let currentServer = "Carbuncle";
+    let currentServer = "";
 
     window.onload = () => {
         const saved = JSON.parse(localStorage.getItem('fflogs_mgr_cfg'));
@@ -101,7 +103,7 @@
 
     async function fetchData(cfg) {
         const content = document.getElementById('main-content');
-        content.innerHTML = `<div class="status-msg">강제 데이터 동기화 중...</div>`;
+        content.innerHTML = `<div class="status-msg">본인 참여 여부 확인 중...</div>`;
         currentServer = cfg.server;
 
         try {
@@ -112,7 +114,6 @@
             });
             const { access_token } = await tokenRes.json();
 
-            // 필터 없는 광범위 쿼리
             const query = `query {
                 characterData {
                     character(name: "${cfg.name}", serverSlug: "${cfg.server}", serverRegion: "KR") {
@@ -134,18 +135,27 @@
             }).then(r => r.json());
 
             const character = res.data.characterData.character;
-            if(!character) throw new Error("캐릭터를 찾을 수 없습니다.");
-
             fights = [];
+            
+            // 본인 캐릭터의 ID를 소문자 공백 제거로 찾기
+            const mySearchName = cfg.name.toLowerCase().replace(/\s/g, "");
+
             character.recentReports.data.forEach(r => {
                 const actors = r.masterData.actors;
+                // 현재 리포트 안에서 나의 ID 찾기
+                const me = actors.find(a => a.name.toLowerCase().replace(/\s/g, "") === mySearchName);
+                if(!me) return; // 리포트 전체에 내가 없으면 패스
+
                 r.fights.forEach(f => {
-                    // 필터를 아예 제거: Trash든 Multiple든 일단 다 담습니다.
+                    // 1. Trash 제외
+                    if(f.name.includes("Trash")) return;
+                    // 2. 해당 전투(fight)의 참여 인원 중 나의 ID가 있는지 확인
+                    if(!f.friendlyPlayers.includes(me.id)) return;
+
                     let info = { name: f.name, cat: "기타" };
                     for (const b of bossDB) {
                         if (f.name.includes(b.key)) { info = b; break; }
                     }
-                    if (f.name.includes("Trash")) info.cat = "기타";
 
                     fights.push({ 
                         ...f, 
@@ -159,36 +169,34 @@
 
             render(document.getElementById('category-select').value);
         } catch (e) {
-            content.innerHTML = `<div class="status-msg" style="color:var(--wipe);">${e.message}</div>`;
+            content.innerHTML = `<div class="status-msg" style="color:var(--wipe);">데이터 로드 실패</div>`;
         }
     }
 
     function render(cat) {
         const container = document.getElementById('main-content');
-        // '전체' 카테고리인 경우 모든 기록을 보여줍니다.
         const list = cat === "전체" ? fights : fights.filter(f => f.category === cat);
         
-        // 최신 리포트 순으로 정렬 (리포트 코드 및 fight ID 기준)
-        list.sort((a, b) => b.id - a.id);
-
         if(list.length === 0) {
-            container.innerHTML = `<div class="status-msg">표시할 데이터가 없습니다. (전체 탭을 확인해 보세요)</div>`;
+            container.innerHTML = `<div class="status-msg">참여한 기록이 없습니다.</div>`;
             return;
         }
 
         container.innerHTML = list.map(f => {
-            const rawPercent = f.fightPercentage / 100;
-            const displayPercent = f.kill ? "CLEAR" : (rawPercent === 0 ? "0.1" : rawPercent.toFixed(1)) + "%";
+            // HP 퍼센트: 10000 = 100%, 4700 = 47.0%
+            const hpLeft = f.fightPercentage / 100;
+            const displayPercent = f.kill ? "CLEAR" : hpLeft.toFixed(1) + "%";
             
             const party = f.friendlyPlayers.map(pId => {
                 const p = f.actors.find(a => a.id === pId);
-                if(!p || p.name === "Limit Break") return '';
-                const charLink = `https://ko.fflogs.com/character/kr/${currentServer}/${encodeURIComponent(p.name)}`;
+                // Multiple 및 빈 객체 완전 삭제
+                if(!p || p.name === "Limit Break" || p.name.toLowerCase().includes("multiple")) return '';
                 
+                const charLink = `https://ko.fflogs.com/character/kr/${currentServer}/${encodeURIComponent(p.name)}`;
                 return `
                     <a href="${charLink}" target="_blank" class="player-link">
                         <div class="player-item">
-                            <img src="https://assets.rpglogs.com/img/ff/icons/${p.icon}.png" class="job-icon" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">
+                            <img src="https://assets.rpglogs.com/img/ff/icons/${p.icon}.png" class="job-icon">
                             <div style="color:var(--sub)">${p.name.split(' ')[0]}</div>
                         </div>
                     </a>`;
@@ -204,9 +212,9 @@
                         <div class="party-grid">${party}</div>
                         <div class="link-group">
                             <span style="color:#555">CODE: ${f.reportCode}</span>
-                            <div class="external-links">
-                                <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" class="ext-link report-link">LOGS ↗</a>
-                                <a href="https://xivanalysis.com/fflogs/${f.reportCode}/${f.id}" target="_blank" class="ext-link analysis-link">ANALYSIS ↗</a>
+                            <div>
+                                <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" class="ext-link" style="color:var(--primary)">LOGS ↗</a>
+                                <a href="https://xivanalysis.com/fflogs/${f.reportCode}/${f.id}" target="_blank" class="ext-link" style="color:var(--ana)">ANALYSIS ↗</a>
                             </div>
                         </div>
                     </div>
