@@ -1,10 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>FFLogs KR Report Manager</title>
+    <style>
+        :root { --bg: #0d0e12; --card: #1a1c23; --primary: #8b5cf6; --text: #f3f4f6; --sub: #9ca3af; --border: #2d3748; --clear: #10b981; --wipe: #ef4444; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { width: 100%; max-width: 700px; }
+        
+        .settings-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; width: 100%; box-sizing: border-box; }
+        .btn-main { background: var(--primary); color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+        .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tab-btn { background: #2d3748; color: var(--sub); padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; flex: 1; }
+        .tab-btn.active { background: var(--primary); color: white; font-weight: bold; }
+
+        .group-header { font-size: 13px; font-weight: bold; margin: 25px 0 10px 5px; color: var(--sub); display: flex; align-items: center; gap: 8px; }
+        .group-header::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; border-left: 5px solid #444; overflow: hidden; }
+        .log-card.is-clear { border-left-color: var(--clear); }
+        .log-card.is-wipe { border-left-color: var(--wipe); }
+        .log-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
+        
+        .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #0a0a0a; padding: 12px; border-radius: 8px; }
+        .player-item { font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 5px; background: #161616; border-radius: 4px; text-align: center; }
+        .job-icon { width: 18px; height: 18px; }
+        .job-tank { color: #2d71c1; } .job-healer { color: #467837; } .job-dps { color: #ad413d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="settings-card">
+        <h3 style="margin-top:0; font-size:15px;">⚙️ FFLogs KR 연동 설정</h3>
+        <div class="settings-grid">
+            <input type="text" id="client-id" placeholder="Client ID">
+            <input type="password" id="client-secret" placeholder="Client Secret">
+            <input type="text" id="char-name" placeholder="캐릭터명">
+            <select id="char-server">
+                <option value="Carbuncle">카벙클</option>
+                <option value="Chocobo">초코보</option>
+                <option value="Moogle">모그리</option>
+                <option value="Tonberry">톤베리</option>
+                <option value="Fenrir">펜리르</option>
+            </select>
+        </div>
+        <button class="btn-main" onclick="saveSettings()">설정 저장 및 데이터 갱신</button>
+    </div>
+
+    <div class="tabs-container">
+        <button class="tab-btn active" onclick="filterTab(this, '절')">절</button>
+        <button class="tab-btn" onclick="filterTab(this, '영식')">영식</button>
+        <button class="tab-btn" onclick="filterTab(this, '극')">극</button>
+        <button class="tab-btn" onclick="filterTab(this, '기타')">기타</button>
+    </div>
+
+    <div id="main-content"></div>
+</div>
+
 <script>
-    /**
-     * ffxiv-datamining-ko 기반 한국어 공식 명칭
-     */
+    // ffxiv-datamining-ko / ContentFinderCondition.csv 기준 한국 서버 공식 명칭
     const bossDB = [
-        // [절] 절 또 하나의 미래 (Futures Rewritten)
-        // FFLogs에서 각 페이즈 보스명으로 기록되므로 최우선으로 매핑
+        // [절] 절 또 하나의 미래 (주요 페이즈 보스명 포함)
         { key: "Fatebreaker", name: "절 또 하나의 미래", cat: "절" },
         { key: "Usurper of Frost", name: "절 또 하나의 미래", cat: "절" },
         { key: "Eden Prime", name: "절 또 하나의 미래", cat: "절" },
@@ -23,55 +82,138 @@
         { key: "M2", name: "아르카디아 선수권: 라이트헤비급 2", cat: "영식" },
         { key: "M1", name: "아르카디아 선수권: 라이트헤비급 1", cat: "영식" },
 
-        // [극] 최신 토벌전
+        // [극] 토벌전
         { key: "Enuo", name: "극 에누오 토벌전", cat: "극" }
     ];
 
-    function logItem(f) {
-        // 1. 퍼센트 계산 로직 (image_819957.png의 29%와 동일하게 출력)
-        // API의 fightPercentage 수치를 100으로 나누고 내림 처리하여 잔여 체력 % 추출
-        let wipePercent = 0;
-        if (f.fightPercentage !== undefined && f.fightPercentage !== null) {
-            wipePercent = Math.floor(f.fightPercentage / 100);
-        }
+    const jobIcons = {
+        Tank: ['Paladin', 'Warrior', 'DarkKnight', 'Gunbreaker'],
+        Healer: ['WhiteMage', 'Scholar', 'Astrologian', 'Sage'],
+        Dps: ['Monk', 'Dragoon', 'Ninja', 'Samurai', 'Reaper', 'Bard', 'Machinist', 'Dancer', 'BlackMage', 'Summoner', 'RedMage', 'Pictomancer', 'Viper']
+    };
 
-        // 2. 명칭 매핑 로직 (Includes 기반)
-        let displayName = f.name;
-        let category = "기타";
+    let fights = [];
+
+    window.onload = () => {
+        const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
+        if(saved) {
+            document.getElementById('client-id').value = saved.id || '';
+            document.getElementById('client-secret').value = saved.secret || '';
+            document.getElementById('char-name').value = saved.name || '';
+            document.getElementById('char-server').value = saved.server || 'Carbuncle';
+            fetchData(saved);
+        }
+    };
+
+    function saveSettings() {
+        const cfg = {
+            id: document.getElementById('client-id').value.trim(),
+            secret: document.getElementById('client-secret').value.trim(),
+            name: document.getElementById('char-name').value.trim(),
+            server: document.getElementById('char-server').value
+        };
+        localStorage.setItem('tomestone_cfg', JSON.stringify(cfg));
+        location.reload();
+    }
+
+    async function fetchData(saved) {
+        try {
+            const tokenRes = await fetch('https://www.fflogs.com/oauth/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
+            });
+            const { access_token } = await tokenRes.json();
+
+            const query = `query {
+                characterData {
+                    character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
+                        recentReports(limit: 15) { 
+                            data {
+                                code
+                                masterData { actors(type: "Player") { id name icon } }
+                                fights { id kill name friendlyPlayers encounterID fightPercentage }
+                            }
+                        }
+                    }
+                }
+            }`;
+
+            const res = await fetch('https://www.fflogs.com/api/v2/client', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${access_token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+
+            const result = await res.json();
+            if (result.errors) throw new Error(result.errors[0].message);
+            
+            fights = [];
+            result.data.characterData.character.recentReports.data.forEach(r => {
+                r.fights.filter(f => f.encounterID !== 0).forEach(f => {
+                    // 한글 매핑
+                    let info = { name: f.name, cat: "기타" };
+                    for (const b of bossDB) {
+                        if (f.name.includes(b.key)) {
+                            info = b;
+                            break;
+                        }
+                    }
+                    fights.push({ ...f, reportCode: r.code, actors: r.masterData.actors, korName: info.name, category: info.cat });
+                });
+            });
+            render('절'); // 첫 화면은 절 레이드로 표시
+        } catch (e) {
+            document.getElementById('main-content').innerHTML = `<div style="color:var(--wipe); padding:20px;">API 오류: ${e.message}</div>`;
+        }
+    }
+
+    function filterTab(btn, cat) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render(cat);
+    }
+
+    function render(cat) {
+        const container = document.getElementById('main-content');
+        const list = fights.filter(f => f.category === cat);
+        const clears = list.filter(f => f.kill);
+        const wipes = list.filter(f => !f.kill);
+
+        let html = "";
+        if(clears.length > 0) html += `<div class="group-header">CLEAR</div>` + clears.map(f => logItem(f)).join('');
+        if(wipes.length > 0) html += `<div class="group-header">WIPE (보스 잔여 체력)</div>` + wipes.map(f => logItem(f)).join('');
         
-        for (const boss of bossDB) {
-            if (f.name.includes(boss.key)) {
-                displayName = boss.name;
-                category = boss.cat;
-                break; 
-            }
-        }
+        container.innerHTML = html || `<div style="text-align:center; padding:50px; color:var(--sub)">기록이 없습니다.</div>`;
+    }
 
+    function logItem(f) {
+        // [수정] image_819957.png의 29%를 표기하기 위한 계산식
+        // API 수치(0~10000)를 100으로 나누어 소수점 버림 처리
+        const wipePercent = Math.floor((f.fightPercentage || 0) / 100);
         const prog = f.kill 
             ? `<span style="color:var(--clear); font-weight:bold;">✅ CLEAR</span>` 
             : `<span style="color:var(--wipe); font-weight:bold;">WIPE ${wipePercent}%</span>`;
-
-        // 파티원 아이콘 및 직업 렌더링 로직 (이전과 동일)
+        
         const party = (f.friendlyPlayers || []).map(pId => {
             const a = f.actors.find(x => x.id === pId);
-            if(!a || a.name === "Limit Break" || a.name === "Multiple Players") return null;
+            if(!a || a.name === "Limit Break") return null;
             const jobClass = jobIcons.Tank.includes(a.icon) ? 'job-tank' : jobIcons.Healer.includes(a.icon) ? 'job-healer' : 'job-dps';
             return `<div class="player-item"><img src="https://assets.rpglogs.com/img/ff/icons/${a.icon}.png" class="job-icon"><div class="${jobClass}">${a.name.split(' ')[0]}</div></div>`;
         }).filter(x => x).slice(0, 8).join('');
 
         return `
             <div class="log-card ${f.kill ? 'is-clear' : 'is-wipe'}">
-                <div class="log-header">
-                    <b>${displayName}</b> 
-                    <span>${prog}</span>
-                </div>
+                <div class="log-header"><b>${f.korName}</b> <span>${prog}</span></div>
                 <div style="padding:15px;">
                     <div class="party-grid">${party}</div>
-                    <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between; color:var(--sub);">
-                        <span>CODE: ${f.reportCode}</span>
-                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">리포트 열기 ↗</a>
+                    <div style="margin-top:10px; font-size:11px; display:flex; justify-content:space-between;">
+                        <span style="color:var(--sub)">ID: ${f.reportCode}</span>
+                        <a href="https://ko.fflogs.com/reports/${f.reportCode}#fight=${f.id}" target="_blank" style="color:var(--primary); text-decoration:none;">분석 보기 ↗</a>
                     </div>
                 </div>
             </div>`;
     }
 </script>
+</body>
+</html>
