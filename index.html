@@ -9,32 +9,47 @@
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
         .container { width: 100%; max-width: 700px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; overflow: hidden; border-left: 5px solid #444; }
+        
+        /* 탭 스타일 */
+        .tabs-container { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; }
+        .tabs-container::-webkit-scrollbar { display: none; }
+        .tab-btn { background: #2d3748; color: var(--sub); padding: 8px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; white-space: nowrap; border: none; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; font-weight: bold; }
+
+        /* 로그 카드 */
+        .log-card { background: #000; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; overflow: hidden; border-left: 5px solid #444; animation: fadeIn 0.3s; }
         .log-card.is-clear { border-left-color: var(--clear); }
         .log-card.is-wipe { border-left-color: var(--wipe); }
         .log-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #222; }
+        
         .party-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #0a0a0a; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         .player-link { text-decoration: none; color: inherit; display: contents; }
-        .player-item { font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: #161616; border-radius: 6px; gap: 5px; min-height: 55px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
+        .player-item { font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: #161616; border-radius: 6px; gap: 5px; min-height: 55px; border: 1px solid transparent; }
         .player-item:hover { background: #252525; border-color: var(--primary); }
+        
         .job-icon { width: 22px; height: 22px; border-radius: 3px; }
         .player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; font-size: 10px; }
         .job-tank { color: #2d71c1; }
         .job-healer { color: #467837; }
         .job-dps { color: #ad413d; }
+        
         .status-badge { padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: bold; }
         .status-clear { background: var(--clear); color: white; }
         .status-wipe { background: var(--wipe); color: white; }
+        
         input, select { background: #111; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; width: calc(100% - 22px); }
         .color-input { width: 100%; height: 40px; padding: 2px; cursor: pointer; }
         button { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; width: 100%; }
         .btn-save { background: var(--primary); color: white; }
         .btn-memo { background: #2d3748; color: white; font-size: 11px; width: auto; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- 설정 섹션 -->
     <div id="section-settings" class="card">
         <h3 style="margin-top:0">⚙️ FFLogs 설정</h3>
         <input type="text" id="client-id" placeholder="Client ID">
@@ -53,24 +68,58 @@
         </div>
         <button class="btn-save" onclick="saveSettings()">저장 후 시작</button>
     </div>
+
+    <!-- 탭 메뉴 -->
+    <div id="tabs-wrapper" class="tabs-container"></div>
+    <!-- 로그 리스트 -->
     <div id="main-content"></div>
 </div>
 
 <script>
-    // 한국어 보스 이름 매핑 (원하는 보스를 계속 추가할 수 있습니다)
+    // 한글 명칭 및 카테고리 매핑 데이터
     const bossNameMap = {
-        // 희망의 낙원 에덴: 재생편
-        "Fatebreaker": "에덴의 희망: 재생 3",
-        "Eden's Promise": "에덴의 희망: 재생 4",
-        // 마의 전당 판데모니움
-        "Erichthonios": "변옥 1층", "Hippokampos": "변옥 2층", "Phoinix": "변옥 3층", "Hesperos": "변옥 4층",
-        "Proto-Carbuncle": "연옥 1층", "Hegemone": "연옥 2층", "Agdistis": "연옥 3층", "Hephaistos": "연옥 4층",
-        "Kokytos": "천옥 1층", "Pandaemonion": "천옥 2층", "Themi": "천옥 3층", "Athena": "천옥 4층",
-        // 아르카디아
-        "Black Cat": "라이트헤비 1층", "Honey B. Lovely": "라이트헤비 2층", "Brute Bomber": "라이트헤비 3층", "Wicked Thunder": "라이트헤비 4층",
-        // 토벌전 및 기타
-        "The Blossom of the Abyss": "나락의 꽃", "Lahabrea": "라하브레아",
-        "The Gilded Araya": "아수라 토벌전"
+        // [7.0] 지천의 아르카디아: 라이트헤비편
+        "Black Cat": { name: "라이트헤비 1층", cat: "아르카디아" },
+        "Honey B. Lovely": { name: "라이트헤비 2층", cat: "아르카디아" },
+        "Brute Bomber": { name: "라이트헤비 3층", cat: "아르카디아" },
+        "Wicked Thunder": { name: "라이트헤비 4층", cat: "아르카디아" },
+
+        // [6.4] 마의 전당 판데모니움: 천옥편
+        "Kokytos": { name: "천옥 1층", cat: "판데모니움" },
+        "Pandaemonion": { name: "천옥 2층", cat: "판데모니움" },
+        "Themis": { name: "천옥 3층", cat: "판데모니움" },
+        "Athena": { name: "천옥 4층", cat: "판데모니움" },
+        "Pallas Athena": { name: "천옥 4층(후반)", cat: "판데모니움" },
+
+        // [6.2] 마의 전당 판데모니움: 연옥편
+        "Proto-Carbuncle": { name: "연옥 1층", cat: "판데모니움" },
+        "Hegemone": { name: "연옥 2층", cat: "판데모니움" },
+        "Agdistis": { name: "연옥 3층", cat: "판데모니움" },
+        "Hephaistos": { name: "연옥 4층", cat: "판데모니움" },
+
+        // [6.0] 마의 전당 판데모니움: 변옥편
+        "Erichthonios": { name: "변옥 1층", cat: "판데모니움" },
+        "Hippokampos": { name: "변옥 2층", cat: "판데모니움" },
+        "Phoinix": { name: "변옥 3층", cat: "판데모니움" },
+        "Hesperos": { name: "변옥 4층", cat: "판데모니움" },
+
+        // [5.4] 희망의 낙원 에덴: 재생편
+        "Cloud of Darkness": { name: "재생 1층", cat: "에덴" },
+        "Shadowkeeper": { name: "재생 2층", cat: "에덴" },
+        "Fatebreaker": { name: "재생 3층", cat: "에덴" },
+        "Eden's Promise": { name: "재생 4층", cat: "에덴" },
+
+        // 절 레이드 (Ultimate)
+        "The Omega Protocol": { name: "절 오메가 검증전", cat: "절 레이드" },
+        "Dragonsong's Reprise": { name: "절 용시전쟁", cat: "절 레이드" },
+        "The Unending Coil of Bahamut": { name: "절 바하무트", cat: "절 레이드" },
+        "The Weapon's Refrain": { name: "절 알테마", cat: "절 레이드" },
+        "The Epic of Alexander": { name: "절 알렉산더", cat: "절 레이드" },
+
+        // 최신 토벌전
+        "The Gilded Araya": { name: "아수라 토벌전", cat: "토벌전" },
+        "Valigarmanda": { name: "바리 가르만다", cat: "토벌전" },
+        "Zoraal Ja": { name: "조라 자", cat: "토벌전" }
     };
 
     const jobGroup = {
@@ -78,6 +127,8 @@
         Healer: ['WhiteMage', 'Scholar', 'Astrologian', 'Sage'],
         Dps: ['Monk', 'Dragoon', 'Ninja', 'Samurai', 'Reaper', 'Bard', 'Machinist', 'Dancer', 'BlackMage', 'Summoner', 'RedMage', 'Pictomancer', 'Viper']
     };
+
+    let allFightsData = [];
 
     window.onload = function() {
         const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
@@ -106,16 +157,14 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `grant_type=client_credentials&client_id=${saved.id}&client_secret=${saved.secret}`
             });
-
-            if (!tokenRes.ok) throw new Error("API 인증 실패");
             const { access_token } = await tokenRes.json();
 
             const query = `query {
                 characterData {
                     character(name: "${saved.name}", serverSlug: "${saved.server}", serverRegion: "KR") {
-                        recentReports(limit: 15) { 
+                        recentReports(limit: 50) { 
                             data {
-                                code title
+                                code
                                 masterData { actors(type: "Player") { id name icon server type } }
                                 fights { id kill name friendlyPlayers encounterID }
                             }
@@ -132,64 +181,106 @@
 
             const result = await res.json();
             if (result.errors) throw new Error(result.errors[0].message);
-
-            renderFights(result.data.characterData.character.recentReports.data, saved);
+            processData(result.data.characterData.character.recentReports.data, saved);
         } catch (e) {
-            alert("오류 발생: " + e.message);
+            alert("데이터 로드 실패: " + e.message);
             localStorage.removeItem('tomestone_cfg');
             location.reload();
         }
     }
 
-    function renderFights(reports, saved) {
-        const container = document.getElementById('main-content');
-        container.innerHTML = reports.flatMap(report => {
-            const players = report.masterData.actors;
-            return (report.fights || []).filter(f => f.encounterID !== 0).reverse().map(fight => {
-                const korName = bossNameMap[fight.name] || fight.name;
-                const uniqueId = `${report.code}_${fight.id}`;
-                const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
+    function processData(reports, saved) {
+        allFightsData = [];
+        const categories = new Set(["전체"]);
 
-                const partyHtml = (fight.friendlyPlayers || []).map(pId => {
-                    const actor = players.find(a => a.id === pId);
-                    
-                    // 핵심 수정: actor가 없거나 이름이 "Multiple Players"인 경우 제거
-                    if(!actor || actor.type !== "Player" || actor.name === "Multiple Players") return null;
-                    
-                    const isMe = actor.name === saved.name;
-                    const group = jobGroup.Tank.includes(actor.icon) ? 'job-tank' : jobGroup.Healer.includes(actor.icon) ? 'job-healer' : 'job-dps';
-                    const profileLink = `https://ko.fflogs.com/character/kr/${actor.server || saved.server}/${actor.name}`;
-                    
-                    return `
-                        <a href="${profileLink}" target="_blank" class="player-link">
-                            <div class="player-item">
-                                <img src="https://assets.rpglogs.com/img/ff/icons/${actor.icon}.png" class="job-icon">
-                                <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+saved.myColor+';font-weight:bold;' : ''}">${actor.name}</div>
-                            </div>
-                        </a>`;
-                }).filter(h => h).slice(0, 8).join('');
-
-                return `
-                    <div class="log-card ${fight.kill ? 'is-clear' : 'is-wipe'}">
-                        <div class="log-header">
-                            <span class="status-badge ${fight.kill ? 'status-clear' : 'status-wipe'}">${fight.kill ? 'CLEAR' : 'WIPE'}</span>
-                            <span style="font-weight:bold;">${korName}</span>
-                            <span style="font-size:10px; color:var(--sub)">${report.code}</span>
-                        </div>
-                        <div style="padding:15px;">
-                            <div class="party-grid">${partyHtml}</div>
-                            <div style="display:flex; gap:8px; margin-bottom:10px;">
-                                <input type="text" id="w-${uniqueId}" value="${memo.w}" placeholder="파밍 현황" style="margin:0; flex:1">
-                                <input type="text" id="m-${uniqueId}" value="${memo.m}" placeholder="메모" style="margin:0; flex:2">
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center">
-                                <a href="https://ko.fflogs.com/reports/${report.code}#fight=${fight.id}" target="_blank" style="color:var(--primary); font-size:11px; text-decoration:none;">로그 보기 ↗</a>
-                                <button class="btn-memo" onclick="saveMemo('${uniqueId}')">저장</button>
-                            </div>
-                        </div>
-                    </div>`;
+        reports.forEach(report => {
+            (report.fights || []).filter(f => f.encounterID !== 0).forEach(fight => {
+                const bossInfo = bossNameMap[fight.name] || { name: fight.name, cat: "기타" };
+                categories.add(bossInfo.cat);
+                
+                allFightsData.push({
+                    ...fight,
+                    reportCode: report.code,
+                    actors: report.masterData.actors,
+                    korName: bossInfo.name,
+                    category: bossInfo.cat
+                });
             });
-        }).join('') || "<div class='card'>전투 기록이 없습니다.</div>";
+        });
+
+        allFightsData.sort((a, b) => b.id - a.id);
+        renderTabs(Array.from(categories));
+        renderContent("전체", saved);
+    }
+
+    function renderTabs(cats) {
+        const wrapper = document.getElementById('tabs-wrapper');
+        wrapper.innerHTML = cats.map(cat => `
+            <button class="tab-btn ${cat === '전체' ? 'active' : ''}" onclick="filterTab(this, '${cat}')">${cat}</button>
+        `).join('');
+    }
+
+    function filterTab(btn, cat) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const saved = JSON.parse(localStorage.getItem('tomestone_cfg'));
+        renderContent(cat, saved);
+    }
+
+    function renderContent(targetCat, saved) {
+        const container = document.getElementById('main-content');
+        const filtered = targetCat === "전체" ? allFightsData : allFightsData.filter(f => f.category === targetCat);
+
+        if(filtered.length === 0) {
+            container.innerHTML = "<div class='card'>해당 카테고리에 리포트가 없습니다.</div>";
+            return;
+        }
+
+        container.innerHTML = filtered.map(fight => {
+            const uniqueId = `${fight.reportCode}_${fight.id}`;
+            const memo = JSON.parse(localStorage.getItem('memo_' + uniqueId)) || {w:'', m:''};
+
+            // 파티 목록 필터링 (Multiple Players, Limit Break 제외)
+            const partyHtml = (fight.friendlyPlayers || []).map(pId => {
+                const actor = fight.actors.find(a => a.id === pId);
+                
+                if(!actor || 
+                   actor.type !== "Player" || 
+                   actor.name === "Multiple Players" || 
+                   actor.name === "Limit Break") return null;
+                
+                const isMe = actor.name === saved.name;
+                const group = jobGroup.Tank.includes(actor.icon) ? 'job-tank' : jobGroup.Healer.includes(actor.icon) ? 'job-healer' : 'job-dps';
+                
+                return `
+                    <a href="https://ko.fflogs.com/character/kr/${actor.server || saved.server}/${actor.name}" target="_blank" class="player-link">
+                        <div class="player-item">
+                            <img src="https://assets.rpglogs.com/img/ff/icons/${actor.icon}.png" class="job-icon">
+                            <div class="player-name ${isMe ? '' : group}" style="${isMe ? 'color:'+saved.myColor+';font-weight:bold;' : ''}">${actor.name}</div>
+                        </div>
+                    </a>`;
+            }).filter(h => h).slice(0, 8).join('');
+
+            return `
+                <div class="log-card ${fight.kill ? 'is-clear' : 'is-wipe'}">
+                    <div class="log-header">
+                        <span class="status-badge ${fight.kill ? 'status-clear' : 'status-wipe'}">${fight.kill ? 'CLEAR' : 'WIPE'}</span>
+                        <span style="font-weight:bold;">${fight.korName}</span>
+                        <span style="font-size:10px; color:var(--sub)">${fight.reportCode}</span>
+                    </div>
+                    <div style="padding:15px;">
+                        <div class="party-grid">${partyHtml}</div>
+                        <div style="display:flex; gap:8px; margin-bottom:10px;">
+                            <input type="text" id="w-${uniqueId}" value="${memo.w}" placeholder="파밍 현황" style="margin:0; flex:1">
+                            <input type="text" id="m-${uniqueId}" value="${memo.m}" placeholder="메모" style="margin:0; flex:2">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center">
+                            <a href="https://ko.fflogs.com/reports/${fight.reportCode}#fight=${fight.id}" target="_blank" style="color:var(--primary); font-size:11px; text-decoration:none;">로그 보기 ↗</a>
+                            <button class="btn-memo" onclick="saveMemo('${uniqueId}')">저장</button>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
     }
 
     function saveMemo(id) {
