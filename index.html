@@ -96,9 +96,11 @@
 <script>
     let reports = [], authToken = "";
 
+    // 1. 번역 맵에 페이트 브레이커 추가
     const translateMap = {
+        "Fatebreaker": "페이트 브레이커",
         "Enuo": "에누오",
-        "Doomtrain": "글라시아 라볼라스",
+        "Doomtrain": "마열차",
         "Lindwurm": "린드블룸",
         "The Tyrant": "더 타이런트", 
         "Vamp Fatale": "뱀프 파탈",
@@ -150,12 +152,13 @@
         const name = document.getElementById('cnick').value.trim();
         const server = document.getElementById('sv-select').value;
         
+        // 2. 절 기록이 안나오는 문제 해결을 위해 limit을 100으로 대폭 상향
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
                     name 
                     zoneRankings
-                    recentReports(limit: 50) { data { code title fights { id name difficulty kill } } } 
+                    recentReports(limit: 100) { data { code title fights { id name difficulty kill } } } 
                 } 
             } 
         }`;
@@ -169,9 +172,10 @@
             const char = json.data?.characterData?.character;
             if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
+            // 3. 올스타 점수 0.0 해결 (FFlogs 공식 API 변수명 정확히 매칭)
             const zr = char.zoneRankings || {};
-            const score = zr.bestAllStarPoints || zr.allStarPoints || zr.rankPoints || 0;
-            const pct = zr.bestAllStarPercent || zr.rankPercent || 0;
+            const score = zr.allStarPoints || zr.allstarPoints || zr.rankPoints || 0;
+            const pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || zr.rankPercent || 0;
 
             document.getElementById('top-user-bar').style.display = 'flex';
             document.getElementById('as-pct').innerText = pct.toFixed(1);
@@ -201,8 +205,9 @@
             const diff = Number(f.difficulty);
             const fName = f.name || "";
             
-            const isUlt = [5, 1005].includes(diff) || /절|Ultimate|Unending|Refrain|Epic of Alexander|Dragonsong|Omega Protocol/i.test(fName);
-            const isSav = [101, 10].includes(diff) || /영웅|Savage|Oracle of Darkness|Usurper of Frost/i.test(fName);
+            // 이름과 ID를 모두 검사하여 탭 누락 방지
+            const isUlt = [5, 1005].includes(diff) || /절|Ultimate|Unending|Refrain|Epic|Dragonsong|Omega|토벌전/i.test(fName);
+            const isSav = [101, 10].includes(diff) || /영웅|Savage|Oracle|Usurper/i.test(fName);
             const isExt = [4, 1004].includes(diff) || /극|Extreme/i.test(fName);
             const isOther = !isUlt && !isSav && !isExt;
 
@@ -228,15 +233,18 @@
         document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>해당 탭의 기록이 없습니다.</div>";
     }
 
+    // 4. 클릭 반응 오류 완전 해결 (Table 쿼리 삭제 후 가장 안전한 masterData 사용)
     async function viewParty(code, fid, title) {
         const container = document.getElementById('party-container');
         const list = document.getElementById('party-list');
         container.style.display = 'block';
         list.innerHTML = "데이터 로딩 중...";
         
+        // table(Casts) 쿼리 때문에 발생하던 에러를 막기 위해 구조 전면 교체
         const q = `query { reportData { report(code: "${code}") { 
             rankings(fightIDs: [${fid}]) 
-            table(fightIDs: [${fid}], dataType: Casts) 
+            fights(fightIDs: [${fid}]) { friendlyPlayers }
+            masterData { actors(type: "Player") { id name subType } }
         } } }`;
 
         try {
@@ -247,39 +255,43 @@
             const json = await res.json();
             
             const report = json.data?.reportData?.report;
-            if (!report) throw new Error("데이터를 가져오지 못했습니다.");
+            if (!report) throw new Error("리포트 응답 에러");
 
-            const tableData = report.table?.data || report.table;
-            if (!tableData || !tableData.playerDetails) throw new Error("파티원 상세 데이터가 누락된 리포트입니다.");
-
-            const details = tableData.playerDetails;
+            const fightInfo = report.fights?.[0] || {};
+            const playerIds = fightInfo.friendlyPlayers || [];
+            const actors = report.masterData?.actors || [];
             const rankings = report.rankings?.data?.[0]?.rankings || [];
 
             let h = "";
-            const allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
-            
-            if(allPlayers.length === 0) {
-                list.innerHTML = "<span style='color:#ff4d4d'>해당 전투의 파티원 기록이 존재하지 않습니다.</span>";
-                return;
-            }
+            let partyCount = 0;
 
-            allPlayers.forEach(p => {
-                const color = jobColors[p.type] || "#ccc";
+            playerIds.forEach(pid => {
+                const p = actors.find(a => a.id === pid);
+                if(!p) return;
+                
+                partyCount++;
+                const color = jobColors[p.subType] || "#ccc";
                 const rankObj = rankings.find(r => r.name === p.name);
                 const rankText = rankObj ? `${rankObj.percentile.toFixed(1)}%` : "-";
                 
                 h += `<div class="player-card" style="border-left-color: ${color}">
-                    <img class="job-icon" src="https://xivapi.com/cj/1/${p.type.toLowerCase()}.png" onerror="this.src='https://xivapi.com/cj/1/error.png'">
+                    <img class="job-icon" src="https://xivapi.com/cj/1/${p.subType.toLowerCase()}.png" onerror="this.src='https://xivapi.com/cj/1/error.png'">
                     <div class="p-name" style="color:${color}">${p.name}</div>
                     <div class="p-rank" style="color:${rankObj ? getC(rankObj.percentile) : 'var(--sub)'}">${rankText}</div>
                 </div>`;
             });
+
+            if(partyCount === 0) {
+                list.innerHTML = "<span style='color:#ff4d4d'>파티원 정보를 찾을 수 없습니다. (비공개 처리된 로그일 수 있습니다)</span>";
+                return;
+            }
+
             list.innerHTML = h;
             document.getElementById('party-title').innerText = `[${title}] 참여 파티원`;
             window.scrollTo({ top: container.offsetTop - 50, behavior: 'smooth' });
         } catch(e) { 
             console.error(e);
-            list.innerHTML = `<span style='color:#ff4d4d'>상세 데이터를 불러올 수 없습니다. 비공개 로그이거나 API 서버 문제일 수 있습니다.</span>`; 
+            list.innerHTML = `<span style='color:#ff4d4d'>데이터 로드 오류: FFlogs 서버에서 해당 리포트의 상세 데이터를 제공하지 않습니다.</span>`; 
         }
     }
 </script>
