@@ -8,6 +8,8 @@
             --bg: #0a0a0c; --card: #16161a; --panel: #1f1f23;
             --primary: #c084fc; --accent: #22c55e; --text: #f3f4f6; --sub: #9ca3af;
             --tank: #2d70ff; --healer: #33a833; --dps: #e03131;
+            --rank-pink: #e268a8; --rank-orange: #ff8000; --rank-purple: #a335ee;
+            --rank-blue: #0070ff; --rank-green: #1eff00; --rank-grey: #666;
         }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
@@ -21,9 +23,9 @@
         }
         .allstar-badge { font-size: 36px; font-weight: 900; padding: 8px 20px; border-radius: 15px; color: #fff; margin-right: 15px; min-width: 80px; text-align: center; }
 
-        .btn { background: var(--primary); color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .btn { background: var(--primary); color: #000; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .btn:hover { opacity: 0.8; transform: translateY(-2px); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn:disabled { opacity: 0.5; cursor: wait; }
 
         input, select { background: #000; border: 1px solid #3f3f46; color: #fff; padding: 14px; border-radius: 10px; box-sizing: border-box; }
         .search-bar { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--primary); background: #0a0a0c; color: #fff; font-size: 16px; margin-bottom: 20px; box-sizing: border-box; }
@@ -37,19 +39,21 @@
         .fight-item:hover, .fight-folder:hover { border-color: var(--primary); transform: translateY(-3px); }
         .fight-folder { background: var(--panel); border: 1px solid #2d2d33; border-radius: 16px; overflow: hidden; transition: 0.2s; }
         .folder-content { background: #0a0a0c; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .sub-fight-item { background: #16161a; border: 1px solid #333; padding: 15px; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-
+        
         .inline-party-container { grid-column: 1 / -1; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; padding: 25px; display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; }
         .party-side, .gear-side { flex: 1; min-width: 300px; }
-        .player-card { background: #16161a; padding: 14px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; cursor: pointer; margin-bottom: 8px; }
-        .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 15px; }
-        .gear-card { background: var(--panel); border: 1px solid #2d2d33; padding: 10px; border-radius: 12px; display: flex; align-items: center; gap: 12px; }
-        .gear-card.editable { cursor: pointer; border-color: var(--primary); }
-        .item-thumb { width: 44px; height: 44px; border-radius: 8px; background: #000; }
+        .player-card { background: #16161a; padding: 14px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; cursor: pointer; margin-bottom: 8px; transition: 0.2s; border: 1px solid transparent; }
+        .player-card:hover { border-color: var(--primary); background: #1f1f2e; }
+
+        .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 15px; }
+        .gear-card { background: var(--panel); border: 1px solid #2d2d33; padding: 10px; border-radius: 12px; display: flex; align-items: center; gap: 12px; height: 64px; }
+        .gear-card.editable { cursor: pointer; border-color: var(--primary); box-shadow: 0 0 10px rgba(192, 132, 252, 0.2); }
+        .item-thumb { width: 44px; height: 44px; border-radius: 8px; background: #000; flex-shrink: 0; }
 
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(5px); }
         .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; max-width: 500px; width: 90%; }
-        .m-result-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; }
+        .m-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; }
+        .m-result-item:hover { background: #2d2d33; }
     </style>
 </head>
 <body>
@@ -100,7 +104,7 @@
 
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
-    <h3 style="margin-top:0; color: var(--primary);">아이템 검색 <small id="db-load-status" style="color:var(--sub); font-size:11px;">(데이터 준비 중...)</small></h3>
+    <h3 style="margin-top:0; color: var(--primary);">아이템 검색 <small id="db-status" style="color:var(--sub); font-size:11px;">(준비 중)</small></h3>
     <input type="text" id="m-search" placeholder="아이템 이름 입력" oninput="doSearch(this.value)" style="width: 100%;">
     <div id="m-results" style="max-height: 350px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
@@ -111,17 +115,29 @@
     let gState = [], editMode = false, curActiveGearId = "", curIdx = { s: null };
     let editedGearCache = {}, dataCache = {};
 
-    const jobColors = { "Paladin": "var(--tank)", "Warrior": "var(--tank)", "DarkKnight": "var(--tank)", "Gunbreaker": "var(--tank)", "WhiteMage": "var(--healer)", "Scholar": "var(--healer)", "Astrologian": "var(--healer)", "Sage": "var(--healer)", "Monk": "var(--dps)", "Dragoon": "var(--dps)", "Ninja": "var(--dps)", "Samurai": "var(--dps)", "Reaper": "var(--dps)", "Viper": "var(--dps)", "Bard": "var(--dps)", "Machinist": "var(--dps)", "Dancer": "var(--dps)", "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)" };
+    const translateMap = {
+        "Fatebreaker": "절 또 하나의 미래", "Oracle": "절 또 하나의 미래", "Usurper": "절 또 하나의 미래",
+        "Enuo": "에누오", "Doomtrain": "마열차", "Lindwurm": "린드블룸",
+        "The Tyrant": "더 타이런트", "Vamp Fatale": "뱀프 파탈", "Red Hot": "레드 핫", "Deep Blue": "딥블루",
+        "The Unending Coil of Bahamut": "절 바하무트 토벌전", "The Weapon's Refrain": "절 알테마 파괴작전",
+        "The Epic of Alexander": "절 알렉산더 토벌전", "Dragonsong's Reprise": "절 용시전쟁", "The Omega Protocol": "절 오메가 검증전"
+    };
+
     const emptyIcons = ["060101", "060102", "060103", "060104", "060105", "060107", "060108", "060109", "060110", "060111", "060112", "060112"];
+
+    function getT(s) {
+        if (!s) return "";
+        let r = s;
+        for (let k in translateMap) { if (r.includes(k)) r = r.split(k).join(translateMap[k]); }
+        return r.replace(" (Ultimate)", "").replace(" (Savage)", "").replace(" (Extreme)", "");
+    }
 
     function getIconUrl(iconId) {
         if (!iconId || iconId === "0") return "https://assets.rpglogs.com/img/ff/icons/Unknown.png";
         const idStr = String(iconId).padStart(6, '0');
-        const folder = idStr.substring(0, 3) + "000";
-        return `https://xivapi.com/i/${folder}/${idStr}.png`;
+        return `https://xivapi.com/i/${idStr.substring(0, 3)}000/${idStr}.png`;
     }
 
-    // 💡 렉 방지를 위한 비동기 점진적 로딩 방식
     async function loadItemDB() {
         if (dbLoaded || isDbLoading) return;
         isDbLoading = true;
@@ -129,14 +145,13 @@
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
             const raw = await res.text();
             const lines = raw.split('\n').slice(3);
-            const statusEl = document.getElementById('db-load-status');
+            const statusEl = document.getElementById('db-status');
             
-            let count = 0;
-            const CHUNK_SIZE = 5000; // 5000줄씩 끊어서 처리 (메인 스레드 확보)
-
-            for (let i = 0; i < lines.length; i += CHUNK_SIZE) {
-                const chunk = lines.slice(i, i + CHUNK_SIZE);
-                chunk.forEach(l => {
+            // 💡 초당 연산량을 조절하여 렉 방지 (청크 단위 비동기 파싱)
+            const CHUNK = 3000;
+            for (let i = 0; i < lines.length; i += CHUNK) {
+                const slice = lines.slice(i, i + CHUNK);
+                slice.forEach(l => {
                     const c = l.split(',');
                     if (c.length >= 13 && c[1]) {
                         const item = { id: c[0], name: c[1].replace(/"/g,''), icon: c[2].padStart(6,'0'), ilvl: c[12] };
@@ -144,17 +159,12 @@
                         itemMap.set(item.id, item);
                     }
                 });
-                count += chunk.length;
-                if(statusEl) statusEl.innerText = `(${Math.floor((count/lines.length)*100)}% 로드됨...)`;
-                await new Promise(resolve => setTimeout(r => resolve(), 0)); // 0ms 쉬어가기 (렉 방지 핵심)
+                if(statusEl) statusEl.innerText = `(${Math.floor((i/lines.length)*100)}% 완료)`;
+                await new Promise(r => setTimeout(r, 0));
             }
-            
             dbLoaded = true;
-            if(statusEl) statusEl.innerText = `(준비 완료)`;
-        } catch (e) { 
-            console.error("DB 로드 실패"); 
-            if(document.getElementById('db-load-status')) document.getElementById('db-load-status').innerText = "(로드 실패)";
-        } finally { isDbLoading = false; }
+            if(statusEl) statusEl.innerText = "(준비 완료)";
+        } catch (e) { console.error("DB 로드 실패"); } finally { isDbLoading = false; }
     }
 
     async function auth() {
@@ -166,13 +176,7 @@
                 body: "grant_type=client_credentials"
             });
             const d = await res.json();
-            if(d.access_token) { 
-                authToken = d.access_token; 
-                alert("인증 성공!"); 
-                document.getElementById('search-btn').disabled = false;
-                // 인증 성공 직후 백그라운드에서 DB 로딩 시작
-                loadItemDB(); 
-            }
+            if(d.access_token) { authToken = d.access_token; alert("인증 성공!"); document.getElementById('search-btn').disabled = false; loadItemDB(); }
         } catch(e) { alert("인증 실패"); }
     }
 
@@ -191,6 +195,10 @@
             document.getElementById('filter-input').style.display = 'block';
             document.getElementById('tab-nav').style.display = 'flex';
             
+            const zr = char.zoneRankings || {};
+            document.getElementById('as-pct').innerText = (zr.bestPerformanceAverage || 0).toFixed(1);
+            document.getElementById('as-points').innerText = Math.floor(zr.bestAllStarPoints || 0).toLocaleString();
+
             reports = char.recentReports.data;
             renderFights('all', document.querySelector('.tab'));
             closeConfig();
@@ -198,14 +206,27 @@
     }
 
     function renderFights(type, el) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
         const list = document.getElementById('fight-list');
-        list.innerHTML = reports.map(r => r.fights.map(f => {
-            const players = r.masterData.actors.map(a => a.name).join(",");
-            return `<div class="fight-item" onclick="viewParty('${r.code}', ${f.id}, '${f.name}', this)" data-players="${players}">
-                <div style="font-weight:900; color:var(--primary)">${f.name}</div>
-                <div style="font-size:12px; color:var(--sub)">${r.code} | ID: ${f.id}</div>
-            </div>`;
-        }).join('')).join('');
+        let html = "";
+        reports.forEach(r => {
+            r.fights.forEach(f => {
+                const isUlt = [5, 1005].includes(f.difficulty) || /Ultimate|절|Fatebreaker|Oracle|Usurper/i.test(f.name);
+                const isSav = !isUlt && ([101, 10].includes(f.difficulty) || /Savage|영웅/i.test(f.name));
+                if (type === 'ultimate' && !isUlt) return;
+                if (type === 'savage' && !isSav) return;
+                if (type === 'other' && (isUlt || isSav)) return;
+
+                const players = r.masterData.actors.map(a => a.name).join(",");
+                let killText = f.kill ? "<span style='color:var(--accent); font-weight:bold;'>클리어</span>" : `<span style='color:var(--dps); font-weight:bold;'>트라이 (P${f.lastPhase || '?'})</span>`;
+                html += `<div class="fight-item" onclick="viewParty('${r.code}', ${f.id}, '${getT(f.name)}', this)" data-players="${players}">
+                    <div style="font-weight:900; color:var(--primary)">${getT(f.name)}</div>
+                    <div style="font-size:12px; color:var(--sub)">${r.code} | ${killText}</div>
+                </div>`;
+            });
+        });
+        list.innerHTML = html;
     }
 
     async function viewParty(code, fid, title, el) {
@@ -226,13 +247,12 @@
         
         const report = reports.find(r => r.code === code);
         const party = report.masterData.actors.filter(a => report.fights.find(f => f.id === fid).friendlyPlayers.includes(a.id));
-        
         document.getElementById(`list-${cacheKey}`).innerHTML = party.map(p => `<div class="player-card" onclick="openGear('${cacheKey}', '${p.name}')">${p.name}</div>`).join('');
         openGear(cacheKey, document.getElementById('as-name').innerText);
     }
 
     async function openGear(cacheKey, pName) {
-        if(!dbLoaded && !isDbLoading) await loadItemDB();
+        if(!dbLoaded) await loadItemDB();
         curActiveGearId = cacheKey; editMode = false;
         const isMe = pName === document.getElementById('as-name').innerText;
         const gearKey = `${cacheKey}_${pName}`;
@@ -240,13 +260,9 @@
         const details = dataCache[cacheKey].table.data.playerDetails;
         const player = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])].find(p => p.name === pName);
 
-        if (editedGearCache[gearKey]) {
-            gState = JSON.parse(JSON.stringify(editedGearCache[gearKey]));
-        } else if (player && player.gear) {
-            gState = player.gear.map(g => ({ id: String(g.id) }));
-        } else {
-            gState = Array.from({length: 12}, () => ({ id: "0" }));
-        }
+        if (editedGearCache[gearKey]) gState = JSON.parse(JSON.stringify(editedGearCache[gearKey]));
+        else if (player && player.gear) gState = player.gear.map(g => ({ id: String(g.id) }));
+        else gState = Array.from({length: 12}, () => ({ id: "0" }));
 
         document.getElementById(`mode-btn-${cacheKey}`).style.display = isMe ? "block" : "none";
         document.getElementById(`gear-title-${cacheKey}`).innerText = `${pName}의 장비`;
@@ -256,38 +272,24 @@
     function drawGear() {
         const grid = document.getElementById(`gear-grid-${curActiveGearId}`);
         const labels = ["무기", "보조", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지1", "반지2"];
-        
         grid.innerHTML = gState.map((g, i) => {
-            const it = itemMap.get(g.id); // 💡 Map을 사용한 빠른 조회
+            const it = itemMap.get(g.id);
             const icon = it ? getIconUrl(it.icon) : getIconUrl(emptyIcons[i]);
-            const name = it ? it.name : "비어있음";
             return `<div class="gear-card ${editMode ? 'editable' : ''}" onclick="${editMode ? `openSearch(${i})` : ''}">
                 <img class="item-thumb" src="${icon}">
-                <div><small style="color:var(--sub)">${labels[i]}</small><div style="font-size:13px; font-weight:bold;">${name}</div></div>
+                <div><small style="color:var(--sub)">${labels[i]}</small><div style="font-weight:bold; font-size:13px;">${it ? it.name : "비어있음"}</div></div>
             </div>`;
         }).join('');
     }
 
     function toggleMode(id) { editMode = !editMode; drawGear(); }
-
     function openSearch(idx) { curIdx.s = idx; document.getElementById('m-bg').style.display = 'block'; document.getElementById('m-ui').style.display = 'block'; }
-
-    function doSearch(v) {
-        if(v.length < 2) return;
-        const res = itemDB.filter(i => i.name.includes(v)).slice(0, 20);
-        document.getElementById('m-results').innerHTML = res.map(i => `<div class="m-result-item" onclick="pick('${i.id}')"><img src="${getIconUrl(i.icon)}" width="32" style="border-radius:4px;"> <span>${i.name}</span> <small style="margin-left:auto; color:var(--primary)">i${i.ilvl}</small></div>`).join('');
-    }
-
-    function pick(id) {
-        gState[curIdx.s].id = id;
-        editedGearCache[`${curActiveGearId}_${document.getElementById('as-name').innerText}`] = JSON.parse(JSON.stringify(gState));
-        drawGear(); closeM();
-    }
-
     function closeM() { document.getElementById('m-bg').style.display = 'none'; document.getElementById('m-ui').style.display = 'none'; }
     function openConfig() { document.getElementById('config-bg').style.display = 'block'; document.getElementById('config-ui').style.display = 'block'; }
     function closeConfig() { document.getElementById('config-bg').style.display = 'none'; document.getElementById('config-ui').style.display = 'none'; }
-
+    function filterLogs() { const q = document.getElementById('filter-input').value.toLowerCase(); document.querySelectorAll('.fight-item').forEach(el => el.style.display = (el.innerText.toLowerCase().includes(q) || el.getAttribute('data-players').toLowerCase().includes(q)) ? '' : 'none'); }
+    function doSearch(v) { if(v.length < 2) return; const res = itemDB.filter(i => i.name.includes(v)).slice(0, 20); document.getElementById('m-results').innerHTML = res.map(i => `<div class="m-result-item" onclick="pick('${i.id}')"><img src="${getIconUrl(i.icon)}" width="32"> ${i.name}</div>`).join(''); }
+    function pick(id) { gState[curIdx.s].id = id; editedGearCache[`${curActiveGearId}_${document.getElementById('as-name').innerText}`] = JSON.parse(JSON.stringify(gState)); drawGear(); closeM(); }
     document.addEventListener('keydown', e => { if(e.key === 'Escape') { closeM(); closeConfig(); } });
 </script>
 </body>
