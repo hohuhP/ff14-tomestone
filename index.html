@@ -8,12 +8,14 @@
             --bg: #0a0a0c; --card: #16161a; --panel: #1f1f23;
             --primary: #c084fc; --accent: #22c55e; --text: #f3f4f6; --sub: #9ca3af;
             --tank: #2d70ff; --healer: #33a833; --dps: #e03131;
+            --rank-pink: #e268a8; --rank-orange: #ff8000; --rank-purple: #a335ee;
+            --rank-blue: #0070ff; --rank-green: #1eff00; --rank-grey: #666;
         }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
 
         .allstar-header { 
-            position: sticky; top: 0; z-index: 100;
+            display: none; position: sticky; top: 0; z-index: 100;
             background: rgba(22, 22, 26, 0.95); backdrop-filter: blur(15px);
             padding: 20px 30px; border-radius: 20px; border-bottom: 2px solid var(--primary);
             margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;
@@ -21,7 +23,7 @@
         }
         .allstar-badge { font-size: 36px; font-weight: 900; padding: 8px 20px; border-radius: 15px; color: #fff; margin-right: 15px; min-width: 80px; text-align: center; }
 
-        .btn { background: var(--primary); color: #000; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .btn { background: var(--primary); color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .btn:hover { opacity: 0.8; transform: translateY(-2px); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -33,13 +35,13 @@
         .tab.active { background: #2d2d33; color: var(--primary); }
 
         #fight-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; margin-bottom: 40px; }
-        .fight-item { background: var(--panel); border: 1px solid #2d2d33; padding: 22px; border-radius: 16px; cursor: pointer; transition: 0.2s; }
+        .fight-item { background: var(--panel); border: 1px solid #2d2d33; padding: 22px; border-radius: 16px; cursor: pointer; transition: 0.2s; position: relative; }
         .fight-item:hover { border-color: var(--primary); transform: translateY(-3px); }
 
         .inline-party-container { grid-column: 1 / -1; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; padding: 25px; display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; animation: slideDown 0.3s ease; }
         .party-side, .gear-side { flex: 1; min-width: 300px; }
-        .player-card { background: #16161a; padding: 14px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; cursor: pointer; margin-bottom: 8px; transition: 0.2s; }
-        .player-card:hover { transform: scale(1.02); background: #1f1f2e; }
+        .player-card { background: #16161a; padding: 14px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; cursor: pointer; margin-bottom: 8px; border: 1px solid transparent; transition: 0.2s; }
+        .player-card:hover { border-color: var(--primary); background: #1f1f2e; }
 
         .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 15px; }
         .gear-card { background: var(--panel); border: 1px solid #2d2d33; padding: 10px; border-radius: 12px; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
@@ -47,7 +49,7 @@
         .item-thumb { width: 44px; height: 44px; border-radius: 8px; background: #000; }
 
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(5px); }
-        .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; max-width: 500px; width: 90%; }
+        .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; max-width: 500px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
         .m-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; }
         .m-result-item:hover { background: #2d2d33; }
 
@@ -66,17 +68,19 @@
             </div>
         </div>
         <div style="text-align: right">
-            <button class="btn" style="background: #2d2d33; color: #fff;" onclick="openConfig()">⚙️ 설정 열기</button>
+            <button class="btn" style="background: #2d2d33; color: #fff; padding: 12px 24px;" onclick="openConfig()">⚙️ 설정 및 검색</button>
         </div>
     </div>
 
     <input type="text" id="filter-input" class="search-bar" style="display: none;" placeholder="🔍 보스 이름, 파티원 닉네임 검색..." onkeyup="filterLogs()">
+    
     <div id="tab-nav" class="tab-menu">
         <div class="tab active" onclick="renderFights('all', this)">전체</div>
         <div class="tab" onclick="renderFights('ultimate', this)">절</div>
         <div class="tab" onclick="renderFights('savage', this)">영웅</div>
         <div class="tab" onclick="renderFights('other', this)">기타</div>
     </div>
+    
     <div id="fight-list"></div>
 </div>
 
@@ -84,35 +88,74 @@
 <div id="config-ui" class="modal-body" style="display:block;">
     <h2 style="margin-top: 0; color: var(--primary);">⚙️ 설정 및 캐릭터 검색</h2>
     <div style="margin-bottom: 20px;">
-        <input type="text" id="cid" placeholder="Client ID" style="width:48%;">
-        <input type="password" id="csec" placeholder="Client Secret" style="width:48%;">
-        <button class="btn" style="width:100%; margin-top:8px;" onclick="auth()">1. API 인증</button>
+        <div style="font-size: 13px; color: var(--sub); margin-bottom: 8px;">1. FFlogs API 인증</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;">
+            <input type="text" id="cid" placeholder="Client ID">
+            <input type="password" id="csec" placeholder="Client Secret">
+            <button class="btn" style="padding: 12px 20px;" onclick="auth()">인증</button>
+        </div>
     </div>
-    <div class="input-group" style="grid-template-columns: 1fr 1fr auto;">
-        <select id="sv-select">
-            <option value="Carbuncle">카벙클</option><option value="Chocobo">초코보</option>
-            <option value="Moogle">모그리</option><option value="Tonberry">톤베리</option>
-            <option value="Fenrir">펜리르</option>
-        </select>
-        <input type="text" id="cnick" placeholder="닉네임">
-        <button id="search-btn" class="btn" style="background: var(--accent)" onclick="fetchCharacter()" disabled>2. 불러오기</button>
+    <div>
+        <div style="font-size: 13px; color: var(--sub); margin-bottom: 8px;">2. 캐릭터 정보 검색</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;">
+            <select id="sv-select">
+                <option value="Carbuncle">카벙클</option><option value="Chocobo">초코보</option>
+                <option value="Moogle">모그리</option><option value="Tonberry">톤베리</option>
+                <option value="Fenrir">펜리르</option>
+            </select>
+            <input type="text" id="cnick" placeholder="닉네임">
+            <button id="search-btn" class="btn" style="background: var(--accent); padding: 12px 20px;" onclick="fetchCharacter()" disabled>불러오기</button>
+        </div>
     </div>
 </div>
 
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
-    <h3 style="margin-top:0; color: var(--primary);">장비 검색</h3>
-    <input type="text" id="m-search" placeholder="아이템 이름 입력" oninput="doSearch(this.value)" style="width: 100%;">
+    <h3 style="margin-top:0; color: var(--primary);">아이템 검색 <small style="color:var(--sub); font-size:11px;">(ESC로 닫기)</small></h3>
+    <input type="text" id="m-search" placeholder="아이템 이름을 입력하세요..." oninput="doSearch(this.value)" style="width: 100%;">
     <div id="m-results" style="max-height: 350px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
 
 <script>
     let reports = [], authToken = "";
-    let itemDB = [], dbLoaded = false;
-    let gState = [], editMode = false, curActiveGearId = "";
+    let itemDB = [], dbLoaded = false, isDbLoading = false;
+    let gState = [], editMode = false, curActiveGearId = "", curIdx = { s: null };
     let editedGearCache = {}, dataCache = {};
 
+    // 한글 치환 맵
+    const translateMap = {
+        "Fatebreaker": "페이트 브레이커", "Enuo": "에누오", "Doomtrain": "마열차", "Lindwurm": "린드블룸",
+        "The Tyrant": "더 타이런트", "Vamp Fatale": "뱀프 파탈", "Red Hot": "레드 핫", "Deep Blue": "딥블루",
+        "The Unending Coil of Bahamut": "절 바하무트 토벌전", "The Weapon's Refrain": "절 알테마 파괴작전",
+        "The Epic of Alexander": "절 알렉산더 토벌전", "Dragonsong's Reprise": "절 용시전쟁", "The Omega Protocol": "절 오메가 검증전"
+    };
+
+    const jobColors = {
+        "Paladin": "var(--tank)", "Warrior": "var(--tank)", "DarkKnight": "var(--tank)", "Gunbreaker": "var(--tank)",
+        "WhiteMage": "var(--healer)", "Scholar": "var(--healer)", "Astrologian": "var(--healer)", "Sage": "var(--healer)",
+        "Monk": "var(--dps)", "Dragoon": "var(--dps)", "Ninja": "var(--dps)", "Samurai": "var(--dps)", "Reaper": "var(--dps)", "Viper": "var(--dps)",
+        "Bard": "var(--dps)", "Machinist": "var(--dps)", "Dancer": "var(--dps)",
+        "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)"
+    };
+
+    const roleOrder = {
+        "Paladin": 1, "Warrior": 1, "DarkKnight": 1, "Gunbreaker": 1,
+        "WhiteMage": 2, "Scholar": 2, "Astrologian": 2, "Sage": 2,
+        "Monk": 3, "Dragoon": 3, "Ninja": 3, "Samurai": 3, "Reaper": 3, "Viper": 3,
+        "Bard": 3, "Machinist": 3, "Dancer": 3,
+        "BlackMage": 3, "Summoner": 3, "RedMage": 3, "Pictomancer": 3
+    };
+
     const emptyIcons = ["060101", "060102", "060103", "060104", "060105", "060107", "060108", "060109", "060110", "060111", "060112", "060112"];
+
+    function getT(s) {
+        if (!s) return "";
+        let r = s;
+        for (let k in translateMap) { if (r.includes(k)) r = r.split(k).join(translateMap[k]); }
+        return r.replace(" (Ultimate)", "").replace(" (Savage)", "").replace(" (Extreme)", "");
+    }
+
+    function getC(p) { return p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)'; }
 
     function getIconUrl(iconId) {
         if (!iconId || iconId === "0") return "https://assets.rpglogs.com/img/ff/icons/Unknown.png";
@@ -121,7 +164,8 @@
     }
 
     async function loadItemDB() {
-        if (dbLoaded) return;
+        if (dbLoaded || isDbLoading) return;
+        isDbLoading = true;
         try {
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
             const raw = await res.text();
@@ -130,7 +174,7 @@
                 return c.length > 12 ? { id: c[0], name: c[1].replace(/"/g,''), icon: c[2].padStart(6,'0'), ilvl: c[12] } : null;
             }).filter(i => i && i.name);
             dbLoaded = true;
-        } catch (e) { console.error("DB 로드 실패"); }
+        } catch (e) { console.error("DB 로드 실패"); } finally { isDbLoading = false; }
     }
 
     async function auth() {
@@ -142,31 +186,26 @@
             });
             const d = await res.json();
             if(d.access_token) { authToken = d.access_token; alert("인증 성공!"); document.getElementById('search-btn').disabled = false; }
-        } catch(e) { alert("인증 정보를 확인해주세요."); }
+        } catch(e) { alert("인증 실패"); }
     }
 
     async function fetchCharacter() {
         const name = document.getElementById('cnick').value.trim(), server = document.getElementById('sv-select').value;
         const btn = document.getElementById('search-btn');
-        btn.innerText = "통신 중..."; btn.disabled = true;
-
-        const q = `query { characterData { character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { name zoneRankings recentReports(limit: 12) { data { code title fights { id name difficulty kill friendlyPlayers } masterData { actors(type: "Player") { id name subType } } } } } } }`;
-        
+        btn.innerText = "로딩 중...";
+        const q = `query { characterData { character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { name zoneRankings recentReports(limit: 15) { data { code title fights { id name difficulty kill friendlyPlayers startTime endTime lastPhase } masterData { actors(type: "Player") { id name subType } } } } } } }`;
         try {
-            const res = await fetch("https://www.fflogs.com/api/v2/client", {
-                method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
-                body: JSON.stringify({ query: q })
-            });
+            const res = await fetch("https://www.fflogs.com/api/v2/client", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` }, body: JSON.stringify({ query: q }) });
             const json = await res.json();
             const char = json.data?.characterData?.character;
-            
-            if(!char) throw new Error("캐릭터를 찾을 수 없습니다.");
+            if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
             const zr = char.zoneRankings || {};
-            const pct = zr.bestPerformanceAverage || zr.rankPercent || 0;
-
+            const pct = zr.bestPerformanceAverage || 0;
+            
+            document.getElementById('top-user-bar').style.display = 'flex';
             document.getElementById('as-pct').innerText = pct.toFixed(1);
-            document.getElementById('as-pct').style.background = pct >= 95 ? '#ff8000' : '#a335ee';
+            document.getElementById('as-pct').style.background = getC(pct);
             document.getElementById('as-name').innerText = char.name;
             document.getElementById('as-name').style.color = '#fff';
             document.getElementById('as-server').innerText = server;
@@ -176,24 +215,46 @@
             reports = char.recentReports.data;
             renderFights('all', document.querySelector('.tab'));
             closeConfig();
-        } catch(e) { 
-            alert("오류: " + e.message); 
-        } finally { 
-            btn.innerText = "불러오기"; btn.disabled = false; 
-        }
+        } catch(e) { alert("데이터 요청 중 오류가 발생했습니다."); } finally { btn.innerText = "불러오기"; }
     }
 
     function renderFights(type, el) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
         const list = document.getElementById('fight-list');
-        list.innerHTML = reports.flatMap(r => r.fights.map(f => {
-            const players = r.masterData.actors.map(a => a.name).join(",");
-            return `<div class="fight-item" onclick="viewParty('${r.code}', ${f.id}, '${f.name}', this)" data-players="${players}">
-                <div style="font-weight:900; color:var(--primary)">${f.name}</div>
-                <div style="font-size:12px; color:var(--sub)">${r.code} | ID: ${f.id}</div>
-            </div>`;
-        })).join('');
+        
+        let html = "";
+        reports.forEach(r => {
+            r.fights.forEach(f => {
+                const isUlt = [5, 1005].includes(f.difficulty) || /절|Ultimate/i.test(f.name);
+                const isSav = !isUlt && ([101, 10].includes(f.difficulty) || /영웅|Savage/i.test(f.name));
+                const isOther = !isUlt && !isSav;
+
+                if (type === 'ultimate' && !isUlt) return;
+                if (type === 'savage' && !isSav) return;
+                if (type === 'other' && !isOther) return;
+
+                const players = r.masterData.actors.map(a => a.name).join(",");
+                let killText = f.kill ? "<span style='color:var(--accent); font-weight:bold;'>클리어</span>" : 
+                    `<span style='color:var(--dps); font-weight:bold;'>트라이${getDurationText(f)}</span>`;
+
+                html += `<div class="fight-item" onclick="viewParty('${r.code}', ${f.id}, '${getT(f.name)}', this)" data-players="${players}">
+                    <div style="font-weight:900; font-size:18px; color:var(--primary)">${getT(f.name)}</div>
+                    <div style="font-size:12px; color:var(--sub); margin-top:5px;">${r.code} | ${killText}</div>
+                </div>`;
+            });
+        });
+        list.innerHTML = html || "<div style='color:var(--sub); padding:20px;'>기록이 없습니다.</div>";
+    }
+
+    function getDurationText(f) {
+        let textArr = [];
+        if (f.lastPhase && f.lastPhase > 0) textArr.push(`P${f.lastPhase}`);
+        if (f.startTime && f.endTime) {
+            const sec = Math.floor((f.endTime - f.startTime) / 1000);
+            textArr.push(`${Math.floor(sec / 60)}분 ${sec % 60}초`);
+        }
+        return textArr.length > 0 ? ` (${textArr.join(" / ")})` : "";
     }
 
     async function viewParty(code, fid, title, el) {
@@ -204,26 +265,34 @@
         const container = document.createElement('div');
         container.id = `inline-${cacheKey}`;
         container.className = 'inline-party-container';
-        container.innerHTML = `<div class="party-side"><h3>참여자</h3><div id="list-${cacheKey}" class="party-grid">로딩 중...</div></div><div class="gear-side"><h3 id="gear-title-${cacheKey}">장비 정보</h3><button id="mode-btn-${cacheKey}" class="btn" style="display:none; padding:8px 16px; margin-bottom:10px;" onclick="toggleMode('${cacheKey}')">편집 모드</button><div id="gear-grid-${cacheKey}" class="gear-grid"></div></div>`;
+        container.innerHTML = `<div class="party-side"><h3>파티원 목록</h3><div id="list-${cacheKey}" class="party-grid">데이터 로딩 중...</div></div><div class="gear-side"><h3 id="gear-title-${cacheKey}">장비 정보</h3><button id="mode-btn-${cacheKey}" class="btn" style="display:none; padding: 8px 16px; margin-bottom:10px;" onclick="toggleMode('${cacheKey}')">장비 편집 모드</button><div id="gear-grid-${cacheKey}" class="gear-grid"></div></div>`;
         el.parentNode.insertBefore(container, el.nextSibling);
 
-        try {
-            if(!dataCache[cacheKey]) {
-                const res = await fetch("https://www.fflogs.com/api/v2/client", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` }, body: JSON.stringify({ query: `query { reportData { report(code: "${code}") { table(fightIDs: [${fid}], dataType: Summary) } } }` }) });
-                dataCache[cacheKey] = (await res.json()).data.reportData.report;
-            }
-            const report = reports.find(r => r.code === code);
-            const party = report.masterData.actors.filter(a => report.fights.find(f => f.id === fid).friendlyPlayers.includes(a.id));
-            document.getElementById(`list-${cacheKey}`).innerHTML = party.map(p => `<div class="player-card" onclick="openGear('${cacheKey}', '${p.name}')">${p.name}</div>`).join('');
-            openGear(cacheKey, document.getElementById('as-name').innerText);
-        } catch(e) { document.getElementById(`list-${cacheKey}`).innerText = "파티 정보를 가져오지 못했습니다."; }
+        if(!dataCache[cacheKey]) {
+            const res = await fetch("https://www.fflogs.com/api/v2/client", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` }, body: JSON.stringify({ query: `query { reportData { report(code: "${code}") { table(fightIDs: [${fid}], dataType: Summary) } } }` }) });
+            dataCache[cacheKey] = (await res.json()).data.reportData.report;
+        }
+        
+        const report = reports.find(r => r.code === code);
+        const party = report.masterData.actors.filter(a => report.fights.find(f => f.id === fid).friendlyPlayers.includes(a.id));
+        party.sort((a, b) => (roleOrder[a.subType] || 99) - (roleOrder[b.subType] || 99));
+
+        document.getElementById(`list-${cacheKey}`).innerHTML = party.map(p => {
+            const color = jobColors[p.subType] || "var(--sub)";
+            return `<div class="player-card" style="border-left-color: ${color}" onclick="openGear('${cacheKey}', '${p.name}', '${p.subType}')">
+                <img src="https://assets.rpglogs.com/img/ff/icons/${p.subType}.png" width="24" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">
+                <span style="color:${color}; font-weight:bold;">${p.name}</span>
+            </div>`;
+        }).join('');
+        
+        openGear(cacheKey, document.getElementById('as-name').innerText, "");
     }
 
-    async function openGear(cacheKey, pName) {
+    async function openGear(cacheKey, pName, job) {
         if(!dbLoaded) await loadItemDB();
         curActiveGearId = cacheKey; editMode = false;
-        const gearKey = `${cacheKey}_${pName}`;
         const isMe = pName === document.getElementById('as-name').innerText;
+        const gearKey = `${cacheKey}_${pName}`;
         
         const details = dataCache[cacheKey].table.data.playerDetails;
         const player = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])].find(p => p.name === pName);
@@ -233,7 +302,7 @@
         else gState = Array.from({length: 12}, () => ({ id: "0" }));
 
         document.getElementById(`mode-btn-${cacheKey}`).style.display = isMe ? "block" : "none";
-        document.getElementById(`gear-title-${cacheKey}`).innerText = `${pName}의 장비`;
+        document.getElementById(`gear-title-${cacheKey}`).innerText = `${pName}의 장비 정보`;
         drawGear();
     }
 
@@ -245,7 +314,7 @@
             const icon = it ? getIconUrl(it.icon) : getIconUrl(emptyIcons[i]);
             return `<div class="gear-card ${editMode ? 'editable' : ''}" onclick="${editMode ? `openSearch(${i})` : ''}">
                 <img class="item-thumb" src="${icon}">
-                <div><small style="color:var(--sub)">${labels[i]}</small><div style="font-size:13px; font-weight:bold;">${it ? it.name : "비어있음"}</div></div>
+                <div><small style="color:var(--sub)">${labels[i]}</small><div style="font-size:13px; font-weight:bold;">${it ? it.name : "데이터 없음"}</div></div>
             </div>`;
         }).join('');
     }
@@ -256,7 +325,7 @@
     function openConfig() { document.getElementById('config-bg').style.display = 'block'; document.getElementById('config-ui').style.display = 'block'; }
     function closeConfig() { document.getElementById('config-bg').style.display = 'none'; document.getElementById('config-ui').style.display = 'none'; }
     function filterLogs() { const q = document.getElementById('filter-input').value.toLowerCase(); document.querySelectorAll('.fight-item').forEach(el => el.style.display = (el.innerText.toLowerCase().includes(q) || el.getAttribute('data-players').toLowerCase().includes(q)) ? '' : 'none'); }
-    function doSearch(v) { if(v.length < 2) return; const res = itemDB.filter(i => i.name.includes(v)).slice(0, 20); document.getElementById('m-results').innerHTML = res.map(i => `<div class="m-result-item" onclick="pick('${i.id}')"><img src="${getIconUrl(i.icon)}" width="32"> ${i.name} <small style="margin-left:auto;">i${i.ilvl}</small></div>`).join(''); }
+    function doSearch(v) { if(v.length < 2) return; const res = itemDB.filter(i => i.name.includes(v)).slice(0, 20); document.getElementById('m-results').innerHTML = res.map(i => `<div class="m-result-item" onclick="pick('${i.id}')"><img src="${getIconUrl(i.icon)}" width="32" style="border-radius:4px;"> <span>${i.name}</span> <small style="margin-left:auto; color:var(--primary)">i${i.ilvl}</small></div>`).join(''); }
     function pick(id) { gState[curIdx.s].id = id; editedGearCache[`${curActiveGearId}_${document.getElementById('as-name').innerText}`] = JSON.parse(JSON.stringify(gState)); drawGear(); closeM(); }
     document.addEventListener('keydown', e => { if(e.key === 'Escape') { closeM(); closeConfig(); } });
 </script>
