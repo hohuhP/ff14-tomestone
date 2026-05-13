@@ -14,16 +14,16 @@
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
 
+        /* 상단 유저 바 (항상 표시됨) */
         .allstar-header { 
-            display: none; position: sticky; top: 0; z-index: 100;
+            position: sticky; top: 0; z-index: 100;
             background: rgba(22, 22, 26, 0.95); backdrop-filter: blur(15px);
             padding: 20px 30px; border-radius: 20px; border-bottom: 2px solid var(--primary);
-            margin-bottom: 25px; align-items: center; justify-content: space-between;
+            margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;
             box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }
-        .allstar-badge { font-size: 36px; font-weight: 900; padding: 8px 20px; border-radius: 15px; color: #fff; margin-right: 15px; min-width: 80px; text-align: center; }
+        .allstar-badge { font-size: 36px; font-weight: 900; padding: 8px 20px; border-radius: 15px; color: #fff; margin-right: 15px; min-width: 80px; text-align: center; transition: 0.3s; }
 
-        .config-card { background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #2d2d33; margin-bottom: 30px; }
         .input-group { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; margin-bottom: 15px; }
         input, select { background: #000; border: 1px solid #3f3f46; color: #fff; padding: 14px; border-radius: 10px; box-sizing: border-box; }
         .btn { background: var(--primary); color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
@@ -52,7 +52,7 @@
         .fflogs-link { background: #2d2d33; color: var(--text); font-size: 11px; padding: 5px 10px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.2s; }
         .fflogs-link:hover { background: var(--primary); color: #000; }
 
-        /* 좌측 파티원 / 우측 장비 나란히 배치 */
+        /* 파티원 / 장비 분할 패널 */
         .inline-party-container { grid-column: 1 / -1; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; padding: 25px; animation: slideDown 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; gap: 20px; flex-wrap: wrap; }
         .party-side { flex: 1; min-width: 300px; }
         .gear-side { flex: 1; min-width: 340px; background: #111; padding: 20px; border-radius: 15px; border-left: 5px solid var(--primary); }
@@ -70,8 +70,10 @@
         .gear-card.editable:hover { transform: translateY(-3px); background: #1a1a24; }
         .item-thumb { width: 48px; height: 48px; border-radius: 10px; background: #000; border: 1px solid #333; }
         
+        /* 모달 및 배경 공통 */
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(5px); }
-        .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; }
+        .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        
         .m-result-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #333; font-size: 14px; }
         .m-result-item:hover { background: #2d2d33; color: var(--primary); }
 
@@ -81,39 +83,22 @@
 <body>
 
 <div class="wrapper">
+    <!-- 상단 헤더 -->
     <div id="top-user-bar" class="allstar-header">
         <div style="display: flex; align-items: center;">
-            <div id="as-pct" class="allstar-badge">--</div>
+            <div id="as-pct" class="allstar-badge" style="background: var(--panel); color: var(--sub);">-</div>
             <div>
-                <div id="as-name" style="font-size: 24px; font-weight: 900;">PLAYER</div>
-                <div id="as-server" style="font-size: 14px; color: var(--sub);">SERVER</div>
+                <div id="as-name" style="font-size: 24px; font-weight: 900; color: var(--sub);">캐릭터를 검색해주세요</div>
+                <div id="as-server" style="font-size: 14px; color: var(--sub);">-</div>
             </div>
         </div>
         <div style="text-align: right">
-            <div id="as-points-label" style="font-size: 12px; color: var(--sub); font-weight: 800;">ALL-STAR POINTS</div>
-            <div id="as-points" style="font-size: 32px; font-weight: 900; color: var(--primary);">-</div>
+            <!-- 설정창 오픈 버튼 -->
+            <button class="btn" style="background: #2d2d33; color: #fff; padding: 12px 24px; font-size: 15px;" onclick="openConfig()">⚙️ 설정</button>
         </div>
     </div>
 
-    <div class="config-card">
-        <div class="input-group">
-            <input type="text" id="cid" placeholder="Client ID">
-            <input type="password" id="csec" placeholder="Client Secret">
-            <button class="btn" onclick="auth()">인증하기</button>
-        </div>
-        <div class="input-group" style="grid-template-columns: 80px 1fr 1fr auto;">
-            <input type="text" value="KR" readonly style="text-align: center;">
-            <select id="sv-select">
-                <option value="Fenrir">펜리르</option><option value="Chocobo">초코보</option>
-                <option value="Moogle">모그리</option><option value="Carbuncle">카벙클</option>
-                <option value="Tonberry">톤베리</option>
-            </select>
-            <input type="text" id="cnick" placeholder="닉네임">
-            <button id="search-btn" class="btn" style="background: var(--accent)" onclick="fetchCharacter()" disabled>불러오기</button>
-        </div>
-    </div>
-
-    <!-- 검색창에 파티원 닉네임 검색 가능하도록 설명 추가 -->
+    <!-- 검색창 -->
     <input type="text" id="filter-input" class="search-bar" style="display: none;" placeholder="🔍 보스 이름, 파티원 닉네임, 탭 검색 (예: 절, 영웅, 에누오)..." onkeyup="filterLogs()">
 
     <div id="tab-nav" class="tab-menu">
@@ -127,8 +112,43 @@
     <div id="fight-list"></div>
 </div>
 
+<!-- 설정 모달창 -->
+<div id="config-bg" class="modal-bg" style="display:block;" onclick="closeConfig()"></div>
+<div id="config-ui" class="modal-body" style="display:block; width: 500px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: var(--primary);">⚙️ 설정 및 캐릭터 검색</h2>
+        <button style="background:none; border:none; color:var(--sub); font-size:20px; cursor:pointer;" onclick="closeConfig()">✖</button>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <div style="font-size: 13px; color: var(--sub); margin-bottom: 8px;">1. API 인증 (최초 1회)</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;">
+            <input type="text" id="cid" placeholder="Client ID" style="padding: 12px;">
+            <input type="password" id="csec" placeholder="Client Secret" style="padding: 12px;">
+            <button class="btn" style="padding: 12px 20px;" onclick="auth()">인증</button>
+        </div>
+    </div>
+
+    <div>
+        <div style="font-size: 13px; color: var(--sub); margin-bottom: 8px;">2. 캐릭터 정보 검색</div>
+        <div style="display: grid; grid-template-columns: 80px 1fr 1fr auto; gap: 8px;">
+            <input type="text" value="KR" readonly style="text-align: center; padding: 12px;">
+            <select id="sv-select" style="padding: 12px;">
+                <option value="Carbuncle">카벙클</option>
+                <option value="Chocobo">초코보</option>
+                <option value="Moogle">모그리</option>
+                <option value="Tonberry">톤베리</option>
+                <option value="Fenrir">펜리르</option>
+            </select>
+            <input type="text" id="cnick" placeholder="닉네임" style="padding: 12px;">
+            <button id="search-btn" class="btn" style="background: var(--accent); padding: 12px 20px;" onclick="fetchCharacter()" disabled>불러오기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 장비 DB 검색 모달창 -->
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
-<div id="m-ui" class="modal-body">
+<div id="m-ui" class="modal-body" style="width: 450px;">
     <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색 <small style="color:var(--sub); font-size:12px;">(ESC로 닫기)</small></h3>
     <input type="text" id="m-search" placeholder="아이템 이름 (2글자 이상 입력)" oninput="doSearch(this.value)" style="width: 100%; box-sizing: border-box; padding: 14px; border-radius: 10px; border: 1px solid var(--primary); background: #000; color: #fff;">
     <div id="m-results" style="max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
@@ -142,13 +162,15 @@
     let curIdx = { s: null };
     let dataCache = {}; 
 
-    // ESC 키로 창 닫기 기능
+    // ESC 키로 열려있는 모든 창 닫기 제어
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
             if (document.getElementById('m-bg').style.display === 'block') {
-                closeM();
+                closeM(); // 아이템 검색 모달 닫기
+            } else if (document.getElementById('config-bg').style.display === 'block') {
+                closeConfig(); // 설정 모달 닫기
             } else {
-                document.querySelectorAll('.inline-party-container').forEach(e => e.remove());
+                document.querySelectorAll('.inline-party-container').forEach(e => e.remove()); // 전투/장비 로그 닫기
             }
         }
     });
@@ -198,6 +220,16 @@
 
     const getC = (p) => p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)';
 
+    function openConfig() {
+        document.getElementById('config-bg').style.display = 'block';
+        document.getElementById('config-ui').style.display = 'block';
+    }
+
+    function closeConfig() {
+        document.getElementById('config-bg').style.display = 'none';
+        document.getElementById('config-ui').style.display = 'none';
+    }
+
     async function initDB() {
         try {
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
@@ -219,7 +251,11 @@
                 body: "grant_type=client_credentials"
             });
             const d = await res.json();
-            if(d.access_token) { authToken = d.access_token; alert("API 인증 성공!"); document.getElementById('search-btn').disabled = false; }
+            if(d.access_token) { 
+                authToken = d.access_token; 
+                alert("API 인증 성공!"); 
+                document.getElementById('search-btn').disabled = false; 
+            }
         } catch(e) { alert("인증 실패"); }
     }
 
@@ -259,11 +295,15 @@
             }
 
             const char = json.data?.characterData?.character;
-            if(!char) return alert("캐릭터를 찾을 수 없습니다.");
+            if(!char) {
+                alert("캐릭터를 찾을 수 없습니다.");
+                btn.innerText = "불러오기";
+                return;
+            }
 
             const zr = char.zoneRankings || {};
             
-            // 💡 1. 평균 퍼포먼스(배지 점수) 계산
+            // 배지 점수 (평균 퍼포먼스)
             let pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || 0;
             if (pct === 0 && zr.rankings && Array.isArray(zr.rankings)) {
                 let maxBossPct = 0;
@@ -273,28 +313,19 @@
                 pct = maxBossPct;
             }
 
-            // 💡 2. 다시 ALL-STAR POINTS (올스타 점수)로 복원
-            let score = 0;
-            if (Array.isArray(zr)) {
-                zr.forEach(z => {
-                    if(z.allStarPoints && z.allStarPoints > score) score = z.allStarPoints;
-                });
-            } else {
-                score = zr.bestAllStarPoints || zr.allStarPoints || zr.points || zr.rankPoints || 0;
-            }
-
-            document.getElementById('top-user-bar').style.display = 'flex';
-            document.getElementById('filter-input').style.display = 'block';
-            
+            // 상단 헤더 UI 업데이트
             document.getElementById('as-pct').innerText = pct.toFixed(1);
             document.getElementById('as-pct').style.background = getC(pct);
+            document.getElementById('as-pct').style.color = '#fff';
+            
             document.getElementById('as-name').innerText = char.name;
+            document.getElementById('as-name').style.color = 'var(--text)';
+            
             document.getElementById('as-server').innerText = server;
             
-            document.getElementById('as-points-label').innerText = "ALL-STAR POINTS";
-            document.getElementById('as-points').innerText = Math.floor(score).toLocaleString();
+            document.getElementById('filter-input').style.display = 'block';
 
-            // 본인 참여 로그 필터링 및 파티원 데이터 캐싱
+            // 본인 참여 로그 필터링
             reports = [];
             const searchName = char.name;
             char.recentReports.data.forEach(r => {
@@ -314,11 +345,13 @@
 
             document.getElementById('tab-nav').style.display = 'flex';
             renderFights('all', document.querySelector('.tab'));
+            
+            // 데이터 로드 성공 시 설정창 자동 닫기
+            closeConfig();
         } catch(e) { alert("통신 중 오류가 발생했습니다."); }
         finally { btn.innerText = "불러오기"; }
     }
 
-    // 💡 닉네임 검색 가능하도록 필터 로직 개선
     function filterLogs() {
         const query = document.getElementById('filter-input').value.toLowerCase();
         const items = document.querySelectorAll('#fight-list > div.fight-folder, #fight-list > div.fight-item');
@@ -383,8 +416,6 @@
             if(!show) return;
 
             const diffText = isUlt ? '절' : isSav ? '영웅' : isExt ? '극' : '기타';
-
-            // 파티원 닉네임을 모아서 검색 필터용 data-players 속성으로 삽입
             const repObj = reports.find(r => r.code === g.code);
             const playersStr = repObj && repObj.actors ? repObj.actors.map(a => a.name).join(",") : "";
 
@@ -578,11 +609,10 @@
             }
 
             const player = allPlayers.find(p => p.name === playerName);
-
-            // 💡 본인 외에는 수정 불가 (읽기 전용 모드 적용)
             const searchedChar = document.getElementById('as-name').innerText;
             const isMe = (playerName === searchedChar);
 
+            // 💡 본인만 편집 가능, 타인은 보기만 가능
             if(!player || !player.gear || player.gear.length === 0) {
                 if (isMe) {
                     subEl.innerText = "장비 기록이 존재하지 않습니다. 빈 슬롯으로 초기화되어 직접 편집할 수 있습니다.";
@@ -599,7 +629,6 @@
                 gState = player.gear.map(g => ({ id: String(g.id) }));
             }
             
-            // 본인일 경우에만 편집 버튼 활성화
             if (isMe && gState.length > 0) {
                 modeBtn.style.display = "block";
                 modeBtn.innerText = "장비 검색/편집 모드";
@@ -707,7 +736,7 @@
         document.getElementById('m-ui').style.display = 'none';
     }
 
-    initDB();
+    window.onload = initDB;
 </script>
 </body>
 </html>
