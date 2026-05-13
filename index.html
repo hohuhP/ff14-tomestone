@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFXIV KR PRO LOGS - DB VER</title>
+    <title>FFXIV KR PRO LOGS</title>
     <style>
         :root { 
             --bg: #0a0a0c; --card: #16161a; --panel: #1f1f23;
@@ -26,7 +26,6 @@
         .input-group { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; margin-bottom: 15px; }
         input, select { background: #000; border: 1px solid #3f3f46; color: #fff; padding: 14px; border-radius: 10px; }
         .btn { background: var(--primary); color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; }
-        .btn:hover { opacity: 0.8; }
 
         .tab-menu { display: none; gap: 8px; background: #1a1a1e; padding: 6px; border-radius: 12px; margin-bottom: 20px; width: fit-content; }
         .tab { padding: 10px 20px; cursor: pointer; border-radius: 8px; color: var(--sub); font-weight: 600; }
@@ -40,9 +39,8 @@
         .party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 20px; }
         .player-card { background: #111; padding: 16px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; }
         .job-icon { width: 32px; height: 32px; }
-        .player-info { flex: 1; }
-        .p-name { font-weight: 700; font-size: 15px; display: block; }
-        .p-rank { font-weight: 900; font-size: 14px; }
+        .p-name { font-weight: 700; font-size: 15px; }
+        .p-rank { font-weight: 900; font-size: 14px; margin-left: auto; }
     </style>
 </head>
 <body>
@@ -66,7 +64,7 @@
         <div class="input-group">
             <input type="text" id="cid" placeholder="Client ID">
             <input type="password" id="csec" placeholder="Client Secret">
-            <button id="auth-btn" class="btn" onclick="auth()">인증하기</button>
+            <button class="btn" onclick="auth()">인증하기</button>
         </div>
         <div class="input-group" style="grid-template-columns: 80px 1fr 1fr auto;">
             <input type="text" value="KR" readonly style="text-align: center;">
@@ -84,7 +82,8 @@
         <div class="tab active" onclick="renderFights('all', this)">전체</div>
         <div class="tab" onclick="renderFights('ultimate', this)">절</div>
         <div class="tab" onclick="renderFights('savage', this)">영웅</div>
-        <div class="tab" onclick="renderFights('extreme', this)">극/기타</div>
+        <div class="tab" onclick="renderFights('extreme', this)">극</div>
+        <div class="tab" onclick="renderFights('other', this)">기타</div>
     </div>
     <div id="fight-list"></div>
 
@@ -97,7 +96,6 @@
 <script>
     let reports = [], authToken = "";
 
-    // 요청하신 공식 명칭 맵 (수정됨)
     const translateMap = {
         "Oracle of Darkness": "또 하나의 미래",
         "Usurper of Frost": "또 하나의 미래",
@@ -105,7 +103,12 @@
         "The Tyrant": "더 타이런트", 
         "Vamp Fatale": "뱀프 파탈",
         "Red Hot": "레드 핫", 
-        "Deep Blue": "딥블루"
+        "Deep Blue": "딥블루",
+        "The Unending Coil of Bahamut": "절 바하무트 탄생전",
+        "The Weapon's Refrain": "절 알테마 파괴작전",
+        "The Epic of Alexander": "절 알렉산더 공성전",
+        "Dragonsong's Reprise": "절 용시전쟁",
+        "The Omega Protocol": "절 오메가 검증전"
     };
 
     const jobColors = {
@@ -116,10 +119,11 @@
         "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)"
     };
 
-    const getT = (s) => { 
-        let r = s; 
-        for(let k in translateMap) r = r.replace(new RegExp(k, 'g'), translateMap[k]); 
-        return r; 
+    const getT = (s) => {
+        if(s.includes("Oracle") || s.includes("Usurper")) return "또 하나의 미래";
+        let r = s;
+        for(let k in translateMap) r = r.replace(new RegExp(k, 'g'), translateMap[k]);
+        return r;
     };
     const getC = (p) => p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)';
 
@@ -142,8 +146,8 @@
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
-                    name zoneRankings 
-                    recentReports(limit: 25) { data { code title fights(killType: Kills) { id name difficulty } } } 
+                    name zoneRankings(zoneID: -1) 
+                    recentReports(limit: 50) { data { code fights(killType: Kills) { id name difficulty } } } 
                 } 
             } 
         }`;
@@ -155,13 +159,17 @@
         const char = json.data?.characterData?.character;
         if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
+        // 올스타 점수 데이터 보정
         const zr = char.zoneRankings || {};
+        const score = zr.rankPoints || zr.allstarPoints || 0;
+        const pct = zr.rankPercent || 0;
+
         document.getElementById('top-user-bar').style.display = 'flex';
-        document.getElementById('as-pct').innerText = (zr.rankPercent || 0).toFixed(1);
-        document.getElementById('as-pct').style.background = getC(zr.rankPercent || 0);
+        document.getElementById('as-pct').innerText = pct.toFixed(1);
+        document.getElementById('as-pct').style.background = getC(pct);
         document.getElementById('as-name').innerText = char.name;
         document.getElementById('as-server').innerText = server;
-        document.getElementById('as-points').innerText = Math.floor(zr.rankPoints || 0).toLocaleString();
+        document.getElementById('as-points').innerText = Math.floor(score).toLocaleString();
 
         reports = char.recentReports.data;
         document.getElementById('tab-nav').style.display = 'flex';
@@ -173,32 +181,39 @@
         el.classList.add('active');
         let html = "";
         const sorted = [];
-        reports.forEach(r => r.fights.forEach(f => sorted.push({ ...f, code: r.code })));
+        reports.forEach(r => r.fights?.forEach(f => sorted.push({ ...f, code: r.code })));
         
-        const difficultyOrder = { 5: 1, 101: 2, 4: 3 }; 
-        sorted.sort((a, b) => (difficultyOrder[a.difficulty] || 99) - (difficultyOrder[b.difficulty] || 99));
+        // 절 > 영웅 > 극 > 기타 순서 정렬 (난이도 ID 기반)
+        const diffOrder = { 5: 1, 101: 2, 4: 3 }; 
+        sorted.sort((a, b) => (diffOrder[a.difficulty] || 99) - (diffOrder[b.difficulty] || 99));
 
         sorted.forEach(f => {
             const isUlt = f.difficulty === 5;
-            const isSav = f.difficulty === 101;
+            const isSav = f.difficulty === 101 || f.difficulty === 10;
             const isExt = f.difficulty === 4;
-            if(type === 'all' || (type === 'ultimate' && isUlt) || (type === 'savage' && isSav) || (type === 'extreme' && !isUlt && !isSav)) {
+            const isOther = !isUlt && !isSav && !isExt;
+
+            let show = (type === 'all') || (type === 'ultimate' && isUlt) || (type === 'savage' && isSav) || (type === 'extreme' && isExt) || (type === 'other' && isOther);
+
+            if(show) {
                 html += `<div class="fight-item" onclick="viewParty('${f.code}', ${f.id}, '${getT(f.name)}')">
                     <div style="font-weight: 900; font-size: 17px; color: var(--primary)">${getT(f.name)}</div>
                     <div style="color: var(--sub); font-size: 12px; margin-top: 6px;">리포트: ${f.code} | ${isUlt?'절':isSav?'영웅':isExt?'극':'기타'}</div>
                 </div>`;
             }
         });
-        document.getElementById('fight-list').innerHTML = html;
+        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>데이터가 없습니다.</div>";
     }
 
     async function viewParty(code, fid, title) {
-        document.getElementById('party-container').style.display = 'block';
-        document.getElementById('party-list').innerHTML = "파티원 데이터를 불러오는 중...";
+        const container = document.getElementById('party-container');
+        const list = document.getElementById('party-list');
+        container.style.display = 'block';
+        list.innerHTML = "파티원 정보를 로드하고 있습니다...";
         
         const q = `query { reportData { report(code: "${code}") { 
             rankings(fightIDs: [${fid}]) 
-            table(fightIDs: [${fid}], dataType: Casts) 
+            table(fightIDs: [${fid}], dataType: Summary) 
         } } }`;
 
         try {
@@ -208,25 +223,25 @@
             });
             const json = await res.json();
             const report = json.data.reportData.report;
-            const playerDetails = report.table.data.playerDetails;
+            const details = report.table.data.playerDetails;
             const rankings = report.rankings.data[0]?.rankings || [];
 
             let h = "";
-            playerDetails.forEach(p => {
+            const allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
+            
+            allPlayers.forEach(p => {
                 const color = jobColors[p.type] || "#ccc";
                 const rankObj = rankings.find(r => r.name === p.name) || { percentile: 0 };
                 h += `<div class="player-card" style="border-left-color: ${color}">
                     <img class="job-icon" src="https://xivapi.com/cj/1/${p.type.toLowerCase()}.png">
-                    <div class="player-info">
-                        <span class="p-name" style="color:${color}">${p.name}</span>
-                    </div>
+                    <div class="p-name" style="color:${color}">${p.name}</div>
                     <div class="p-rank" style="color:${getC(rankObj.percentile)}">${rankObj.percentile.toFixed(1)}%</div>
                 </div>`;
             });
-            document.getElementById('party-list').innerHTML = h;
-            document.getElementById('party-title').innerText = `[${title}] 전투 참여 멤버`;
-            window.scrollTo({ top: document.getElementById('party-container').offsetTop - 50, behavior: 'smooth' });
-        } catch(e) { document.getElementById('party-list').innerHTML = "데이터 로드 오류."; }
+            list.innerHTML = h;
+            document.getElementById('party-title').innerText = `[${title}] 함께한 파티원`;
+            window.scrollTo({ top: container.offsetTop - 50, behavior: 'smooth' });
+        } catch(e) { list.innerHTML = "<span style='color:#ff4d4d'>데이터 로드 오류. 다시 시도해 주세요.</span>"; }
     }
 </script>
 </body>
