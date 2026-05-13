@@ -27,6 +27,7 @@
         input, select { background: #000; border: 1px solid #3f3f46; color: #fff; padding: 14px; border-radius: 10px; box-sizing: border-box; }
         .btn { background: var(--primary); color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .btn:hover { opacity: 0.8; transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .search-bar { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--primary); background: #0a0a0c; color: #fff; font-size: 16px; margin-bottom: 20px; box-sizing: border-box; }
 
@@ -51,7 +52,6 @@
         .fflogs-link { background: #2d2d33; color: var(--text); font-size: 11px; padding: 5px 10px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.2s; }
         .fflogs-link:hover { background: var(--primary); color: #000; }
 
-        /* 파티원 / 장비 분할 패널 */
         .inline-party-container { grid-column: 1 / -1; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; padding: 25px; animation: slideDown 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; gap: 20px; flex-wrap: wrap; }
         .party-side { flex: 1; min-width: 300px; }
         .gear-side { flex: 1; min-width: 340px; background: #111; padding: 20px; border-radius: 15px; border-left: 5px solid var(--primary); }
@@ -69,11 +69,9 @@
         .gear-card.editable:hover { transform: translateY(-3px); background: #1a1a24; }
         .item-thumb { width: 48px; height: 48px; border-radius: 10px; background: #000; border: 1px solid #333; }
         
-        /* 모달 및 배경 공통 */
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(5px); }
         .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
         
-        /* 검색 모달 아이템 리스트 (아이콘 포함 디자인으로 변경) */
         .m-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #333; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
         .m-result-item:hover { background: #2d2d33; color: var(--primary); }
 
@@ -92,7 +90,9 @@
             </div>
         </div>
         <div style="text-align: right">
-            <button class="btn" style="background: #2d2d33; color: #fff; padding: 12px 24px; font-size: 15px;" onclick="openConfig()">⚙️ 설정</button>
+            <div id="as-points-label" style="font-size: 12px; color: var(--sub); font-weight: 800; margin-bottom:4px;">ALL-STAR POINTS</div>
+            <div id="as-points" style="font-size: 28px; font-weight: 900; color: var(--primary); margin-bottom:8px;">-</div>
+            <button class="btn" style="background: #2d2d33; color: #fff; padding: 8px 20px; font-size: 13px;" onclick="openConfig()">⚙️ 설정 열기</button>
         </div>
     </div>
 
@@ -151,7 +151,7 @@
 
 <script>
     let reports = [], authToken = "";
-    let itemDB = [], dbLoaded = false;
+    let itemDB = [], dbLoaded = false, isDbLoading = false;
     let gState = [], editMode = false;
     let curActiveGearId = ""; 
     let curIdx = { s: null };
@@ -172,19 +172,10 @@
     });
 
     const translateMap = {
-        "Fatebreaker": "페이트 브레이커",
-        "Enuo": "에누오",
-        "Doomtrain": "마열차",
-        "Lindwurm": "린드블룸",
-        "The Tyrant": "더 타이런트", 
-        "Vamp Fatale": "뱀프 파탈",
-        "Red Hot": "레드 핫", 
-        "Deep Blue": "딥블루",
-        "The Unending Coil of Bahamut": "절 바하무트 토벌전",
-        "The Weapon's Refrain": "절 알테마 파괴작전",
-        "The Epic of Alexander": "절 알렉산더 토벌전",
-        "Dragonsong's Reprise": "절 용시전쟁",
-        "The Omega Protocol": "절 오메가 검증전"
+        "Fatebreaker": "페이트 브레이커", "Enuo": "에누오", "Doomtrain": "마열차", "Lindwurm": "린드블룸",
+        "The Tyrant": "더 타이런트", "Vamp Fatale": "뱀프 파탈", "Red Hot": "레드 핫", "Deep Blue": "딥블루",
+        "The Unending Coil of Bahamut": "절 바하무트 토벌전", "The Weapon's Refrain": "절 알테마 파괴작전",
+        "The Epic of Alexander": "절 알렉산더 토벌전", "Dragonsong's Reprise": "절 용시전쟁", "The Omega Protocol": "절 오메가 검증전"
     };
 
     const jobColors = {
@@ -226,16 +217,32 @@
         document.getElementById('config-ui').style.display = 'none';
     }
 
-    async function initDB() {
+    // 💡 백그라운드 지연 로딩 (초기 렉 방지)
+    async function loadItemDB() {
+        if (dbLoaded || isDbLoading) return;
+        isDbLoading = true;
         try {
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
             const raw = await res.text();
-            itemDB = raw.split('\n').slice(3).map(l => {
+            const lines = raw.split('\n');
+            let tempDB = [];
+            for (let i = 3; i < lines.length; i++) {
+                const l = lines[i];
+                if (!l) continue;
                 const c = l.split(',');
-                return { id: c[0], name: (c[1]||"").replace(/"/g,''), icon: (c[2]||"0").padStart(6,'0'), ilvl: parseInt(c[12])||0 };
-            }).filter(i => i.name);
+                if (c.length < 13) continue;
+                const name = (c[1] || "").replace(/"/g, '');
+                if (name) {
+                    tempDB.push({ id: c[0], name: name, icon: (c[2] || "0").padStart(6, '0'), ilvl: parseInt(c[12]) || 0 });
+                }
+            }
+            itemDB = tempDB;
             dbLoaded = true;
-        } catch(e) { console.error("아이템 DB 오류"); }
+        } catch (e) {
+            console.error("아이템 DB 오류:", e);
+        } finally {
+            isDbLoading = false;
+        }
     }
 
     async function auth() {
@@ -260,13 +267,15 @@
         const server = document.getElementById('sv-select').value;
         const btn = document.getElementById('search-btn');
         btn.innerText = "로딩 중...";
+        btn.disabled = true; // 💡 중복 클릭 렉 방지
 
+        // 💡 limit을 15로 낮춰서 FFlogs 타임아웃 방지
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
                     name 
                     zoneRankings
-                    recentReports(limit: 25) { 
+                    recentReports(limit: 15) { 
                         data { 
                             code title 
                             fights { id name difficulty kill fightPercentage bossPercentage friendlyPlayers startTime endTime lastPhase } 
@@ -282,18 +291,19 @@
                 method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
                 body: JSON.stringify({ query: q })
             });
+            
+            if (!res.ok) throw new Error(`서버 응답 오류 (HTTP ${res.status})`);
+            
             const json = await res.json();
 
             if(json.errors) {
                 alert("FFlogs API 에러: " + json.errors[0].message);
-                btn.innerText = "불러오기";
                 return;
             }
 
             const char = json.data?.characterData?.character;
             if(!char) {
                 alert("캐릭터를 찾을 수 없습니다.");
-                btn.innerText = "불러오기";
                 return;
             }
 
@@ -326,10 +336,7 @@
             
             document.getElementById('as-name').innerText = char.name;
             document.getElementById('as-name').style.color = 'var(--text)';
-            
             document.getElementById('as-server').innerText = server;
-            
-            document.getElementById('as-points-label').innerText = "ALL-STAR POINTS";
             document.getElementById('as-points').innerText = Math.floor(score).toLocaleString();
 
             reports = [];
@@ -353,8 +360,12 @@
             renderFights('all', document.querySelector('.tab'));
             
             closeConfig();
-        } catch(e) { alert("통신 중 오류가 발생했습니다."); }
-        finally { btn.innerText = "불러오기"; }
+        } catch(e) { 
+            alert("통신 중 오류가 발생했습니다.\n상세: " + e.message + "\n(FFlogs 서버가 일시적으로 불안정할 수 있습니다.)"); 
+        } finally { 
+            btn.innerText = "불러오기"; 
+            btn.disabled = false; 
+        }
     }
 
     function filterLogs() {
@@ -565,7 +576,7 @@
             const searchedChar = document.getElementById('as-name').innerText;
             const myActor = party.find(p => p.name === searchedChar);
             if(myActor) {
-                openGearFromCache(cacheKey, myActor.name.replace(/'/g, "\\'"), myActor.subType);
+                openGearFromCache(cacheKey, myActor.name, myActor.subType);
             } else {
                 document.getElementById(`gear-sub-${cacheKey}`).innerText = "좌측에서 장비를 확인할 파티원을 클릭하세요.";
             }
@@ -578,13 +589,8 @@
         }
     }
 
-    function openGearFromCache(cacheKey, playerName, job) {
+    async function openGearFromCache(cacheKey, playerName, job) {
         try {
-            if(!dbLoaded) {
-                alert("아이템 데이터베이스(DB)가 아직 로딩 중입니다.");
-                return;
-            }
-            
             curActiveGearId = cacheKey; 
             editMode = false;
 
@@ -597,6 +603,13 @@
             subEl.innerText = "데이터를 처리하는 중...";
             gridEl.innerHTML = "";
             modeBtn.style.display = "none";
+
+            // 💡 DB가 아직 로드되지 않았다면 여기서 최초 1회 다운로드
+            if (!dbLoaded) {
+                subEl.innerText = "최초 1회 아이템 DB를 다운로드 중입니다. 잠시만 기다려주세요...";
+                subEl.style.color = "var(--primary)";
+                await loadItemDB();
+            }
             
             const reportData = dataCache[cacheKey];
             const tableData = reportData?.table?.data || reportData?.table;
@@ -719,7 +732,12 @@
         drawEditor();
     }
 
-    function openSearch(idx) {
+    async function openSearch(idx) {
+        if (!dbLoaded) {
+            document.getElementById('m-search').placeholder = "DB 다운로드 중입니다. 잠시만 대기해주세요...";
+            await loadItemDB();
+            document.getElementById('m-search').placeholder = "아이템 이름 (2글자 이상 입력)";
+        }
         curIdx.s = idx;
         document.getElementById('m-bg').style.display = 'block';
         document.getElementById('m-ui').style.display = 'block';
@@ -728,7 +746,6 @@
         document.getElementById('m-search').focus();
     }
 
-    // 💡 DB 장비 검색 모달에서도 실제 장비 아이콘을 추가로 렌더링
     function doSearch(v) {
         if(v.length < 2) return;
         const res = itemDB.filter(i => i.name.includes(v)).slice(0, 30);
@@ -758,8 +775,6 @@
         document.getElementById('m-bg').style.display = 'none';
         document.getElementById('m-ui').style.display = 'none';
     }
-
-    window.onload = initDB;
 </script>
 </body>
 </html>
