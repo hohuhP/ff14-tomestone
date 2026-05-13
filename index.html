@@ -39,8 +39,8 @@
         .party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 20px; }
         .player-card { background: #111; padding: 16px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; }
         .job-icon { width: 32px; height: 32px; }
-        .p-name { font-weight: 700; font-size: 15px; }
-        .p-rank { font-weight: 900; font-size: 14px; margin-left: auto; }
+        .p-name { font-weight: 700; font-size: 15px; flex: 1; }
+        .p-rank { font-weight: 900; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -96,9 +96,10 @@
 <script>
     let reports = [], authToken = "";
 
+    // 공식 DB 기반 명칭 맵 업데이트
     const translateMap = {
-        "Oracle of Darkness": "또 하나의 미래",
-        "Usurper of Frost": "또 하나의 미래",
+        "Enuo": "에누오",
+        "Doomtrain": "마열차",
         "Lindwurm": "린드블룸",
         "The Tyrant": "더 타이런트", 
         "Vamp Fatale": "뱀프 파탈",
@@ -119,12 +120,17 @@
         "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)"
     };
 
+    // 보스 명칭 통합 및 변환 로직
     const getT = (s) => {
         if(s.includes("Oracle") || s.includes("Usurper")) return "또 하나의 미래";
         let r = s;
-        for(let k in translateMap) r = r.replace(new RegExp(k, 'g'), translateMap[k]);
+        for(let k in translateMap) {
+            const regex = new RegExp(`\\b${k}\\b`, 'gi'); // 단어 단위로 정확히 매칭
+            r = r.replace(regex, translateMap[k]);
+        }
         return r;
     };
+
     const getC = (p) => p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)';
 
     async function auth() {
@@ -143,11 +149,13 @@
     async function fetchCharacter() {
         const name = document.getElementById('cnick').value;
         const server = document.getElementById('sv-select').value;
+        // zoneRankings 쿼리 최적화
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
-                    name zoneRankings(zoneID: -1) 
-                    recentReports(limit: 50) { data { code fights(killType: Kills) { id name difficulty } } } 
+                    name 
+                    zoneRankings
+                    recentReports(limit: 50) { data { code title fights(killType: Kills) { id name difficulty } } } 
                 } 
             } 
         }`;
@@ -159,9 +167,9 @@
         const char = json.data?.characterData?.character;
         if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
-        // 올스타 점수 데이터 보정
+        // 올스타 점수 및 순위 반영 (0.0 방지)
         const zr = char.zoneRankings || {};
-        const score = zr.rankPoints || zr.allstarPoints || 0;
+        const score = zr.allstarPoints || zr.rankPoints || 0;
         const pct = zr.rankPercent || 0;
 
         document.getElementById('top-user-bar').style.display = 'flex';
@@ -183,8 +191,8 @@
         const sorted = [];
         reports.forEach(r => r.fights?.forEach(f => sorted.push({ ...f, code: r.code })));
         
-        // 절 > 영웅 > 극 > 기타 순서 정렬 (난이도 ID 기반)
-        const diffOrder = { 5: 1, 101: 2, 4: 3 }; 
+        // 절(5), 영웅(101/10), 극(4) 순서 정렬
+        const diffOrder = { 5: 1, 101: 2, 10: 2, 4: 3 }; 
         sorted.sort((a, b) => (diffOrder[a.difficulty] || 99) - (diffOrder[b.difficulty] || 99));
 
         sorted.forEach(f => {
@@ -193,7 +201,12 @@
             const isExt = f.difficulty === 4;
             const isOther = !isUlt && !isSav && !isExt;
 
-            let show = (type === 'all') || (type === 'ultimate' && isUlt) || (type === 'savage' && isSav) || (type === 'extreme' && isExt) || (type === 'other' && isOther);
+            let show = false;
+            if(type === 'all') show = true;
+            else if(type === 'ultimate' && isUlt) show = true;
+            else if(type === 'savage' && isSav) show = true;
+            else if(type === 'extreme' && isExt) show = true;
+            else if(type === 'other' && isOther) show = true;
 
             if(show) {
                 html += `<div class="fight-item" onclick="viewParty('${f.code}', ${f.id}, '${getT(f.name)}')">
@@ -202,14 +215,14 @@
                 </div>`;
             }
         });
-        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>데이터가 없습니다.</div>";
+        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>기록이 없습니다.</div>";
     }
 
     async function viewParty(code, fid, title) {
         const container = document.getElementById('party-container');
         const list = document.getElementById('party-list');
         container.style.display = 'block';
-        list.innerHTML = "파티원 정보를 로드하고 있습니다...";
+        list.innerHTML = "데이터 로딩 중...";
         
         const q = `query { reportData { report(code: "${code}") { 
             rankings(fightIDs: [${fid}]) 
@@ -239,9 +252,9 @@
                 </div>`;
             });
             list.innerHTML = h;
-            document.getElementById('party-title').innerText = `[${title}] 함께한 파티원`;
+            document.getElementById('party-title').innerText = `[${title}] 참여 파티원`;
             window.scrollTo({ top: container.offsetTop - 50, behavior: 'smooth' });
-        } catch(e) { list.innerHTML = "<span style='color:#ff4d4d'>데이터 로드 오류. 다시 시도해 주세요.</span>"; }
+        } catch(e) { list.innerHTML = "<span style='color:#ff4d4d'>상세 데이터를 불러올 수 없습니다.</span>"; }
     }
 </script>
 </body>
