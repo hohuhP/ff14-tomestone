@@ -29,7 +29,6 @@
         .btn { background: var(--primary); color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; }
         .btn:hover { opacity: 0.8; transform: translateY(-2px); }
 
-        /* 장비 에디터 (탭 메뉴보다 위에 위치하도록 수정) */
         #editor-container { display: none; margin-bottom: 30px; animation: slideDown 0.4s ease; }
         .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 15px; margin-top: 20px;}
         .gear-card { background: var(--card); border: 1px solid #2d2d33; padding: 18px; border-radius: 16px; display: flex; align-items: center; gap: 15px; transition: 0.2s; }
@@ -106,7 +105,6 @@
         </div>
     </div>
 
-    <!-- 장비 에디터 (탭 메뉴보다 위쪽으로 이동됨) -->
     <div id="editor-container">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #111; border-radius: 15px; border-left: 5px solid var(--primary);">
             <div>
@@ -135,7 +133,7 @@
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
     <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색</h3>
-    <input type="text" id="m-search" placeholder="아이템 이름 (2글자 이상 입력)" oninput="doSearch(this.value)">
+    <input type="text" id="m-search" placeholder="아이템 이름 검색" oninput="doSearch(this.value)">
     <div id="m-results" style="max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
 
@@ -144,8 +142,8 @@
     let itemDB = [], dbLoaded = false;
     let gState = [], editMode = false, curIdx = { s: null };
 
-    // DB 번역 (페이트 브레이커 추가 및 토벌전 명칭 정리)
     const translateMap = {
+        "Fatebreaker": "페이트 브레이커",
         "Enuo": "에누오",
         "Doomtrain": "마열차",
         "Lindwurm": "린드블룸",
@@ -168,7 +166,6 @@
         "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)"
     };
 
-    // 직업 정렬 순서 (탱 > 힐 > 딜)
     const roleOrder = {
         "Paladin": 1, "Warrior": 1, "DarkKnight": 1, "Gunbreaker": 1,
         "WhiteMage": 2, "Scholar": 2, "Astrologian": 2, "Sage": 2,
@@ -179,7 +176,6 @@
 
     const getT = (s) => {
         if (!s) return "";
-        // 명칭 묶기 로직 (절 또 하나의 미래)
         if (s.includes("Oracle") || s.includes("Usurper") || s.includes("Fatebreaker")) return "절 또 하나의 미래";
         
         let r = s;
@@ -223,12 +219,13 @@
         const btn = document.getElementById('search-btn');
         btn.innerText = "로딩 중...";
 
+        // 과부하 방지를 위해 limit을 다시 50으로 하향 조절
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
                     name 
                     zoneRankings
-                    recentReports(limit: 100) { data { code title fights { id name difficulty kill fightPercentage bossPercentage } } } 
+                    recentReports(limit: 50) { data { code title fights { id name difficulty kill fightPercentage bossPercentage } } } 
                 } 
             } 
         }`;
@@ -239,14 +236,20 @@
                 body: JSON.stringify({ query: q })
             });
             const json = await res.json();
-            const char = json.data?.characterData?.character;
-            if(!char) return alert("캐릭터를 찾을 수 없습니다. (비공개 로그 확인)");
 
-            // 올스타 점수 데이터 추출 방식 수정 (다양한 응답 구조 대응)
+            // 에러 시 원인을 팝업으로 상세히 띄움
+            if(json.errors) {
+                console.error(json.errors);
+                alert("FFlogs 데이터 통신 에러: " + json.errors[0].message);
+                return;
+            }
+
+            const char = json.data?.characterData?.character;
+            if(!char) return alert("캐릭터를 찾을 수 없습니다.");
+
             const zr = char.zoneRankings || {};
             let score = 0, pct = 0;
             
-            // zoneRankings가 배열 형태일 때 (가장 높은 점수를 뽑음)
             if (Array.isArray(zr)) {
                 zr.forEach(z => {
                     if(z.rankPercent > pct) pct = z.rankPercent;
@@ -267,7 +270,7 @@
             reports = char.recentReports.data;
             document.getElementById('tab-nav').style.display = 'flex';
             renderFights('all', document.querySelector('.tab'));
-        } catch(e) { alert("통신 오류가 발생했습니다."); }
+        } catch(e) { alert("통신 중 심각한 오류가 발생했습니다."); }
         finally { btn.innerText = "불러오기"; }
     }
 
@@ -282,7 +285,6 @@
         el.classList.add('active');
         document.querySelectorAll('.inline-party-container').forEach(e => e.remove());
 
-        // 동일한 리포트 & 동일한 보스 전투 그룹화
         const groups = {};
         reports.forEach(r => {
             r.fights?.forEach(f => {
@@ -300,8 +302,7 @@
         let html = "";
         sortedGroups.forEach(g => {
             const fName = g.name || "";
-            // 난이도 및 탭 매칭 강화 (에누오는 극 탭으로, 페이트 브레이커/오라클은 절 탭으로)
-            const isUlt = [5, 1005].includes(g.difficulty) || /절|Ultimate|Unending|Refrain|Epic|Dragonsong|Omega|토벌전|미래|Fatebreaker|Oracle/i.test(fName);
+            const isUlt = [5, 1005].includes(g.difficulty) || /절|Ultimate|Unending|Refrain|Epic|Dragonsong|Omega|토벌전|미래|Fatebreaker|Oracle|Usurper/i.test(fName);
             const isSav = !isUlt && ([101, 10].includes(g.difficulty) || /영웅|Savage/i.test(fName));
             const isExt = !isUlt && !isSav && ([4, 1004].includes(g.difficulty) || /극|Extreme|Enuo|에누오/i.test(fName));
             const isOther = !isUlt && !isSav && !isExt;
@@ -400,7 +401,6 @@
             const actors = report.masterData?.actors || [];
             const rankings = report.rankings?.data?.[0]?.rankings || [];
 
-            // 쓰레기 데이터 (멀티 플레이어 / 리미트 브레이크) 제거
             const excludedNames = ["Limit Break", "Multiple Players"];
             let party = actors.filter(a => validIds.includes(a.id) && !excludedNames.includes(a.name) && a.subType !== "LimitBreak");
             
@@ -409,7 +409,6 @@
                 return;
             }
 
-            // 탱커 > 힐러 > 딜러 순서 정렬
             party.sort((a, b) => (roleOrder[a.subType] || 99) - (roleOrder[b.subType] || 99));
 
             let h = "";
@@ -418,11 +417,9 @@
                 const rankObj = rankings.find(r => r.name === p.name);
                 const rankText = rankObj ? `${rankObj.percentile.toFixed(1)}%` : "-";
                 
-                // FFlogs 공식 직업 아이콘 URL
                 const iconUrl = `https://assets.rpglogs.com/img/ff/icons/${p.subType}.png`;
-                const safeName = p.name.replace(/'/g, "\\'"); // 이름 따옴표 에러 이스케이프
+                const safeName = p.name.replace(/'/g, "\\'"); 
 
-                // 닉네임 클릭 시 openGear 실행되도록 onclick 확실히 적용
                 h += `<div class="player-card" style="border-left-color: ${color}" onclick="openGear('${code}', ${fid}, '${safeName}', '${p.subType}'); event.stopPropagation();">
                     <img class="job-icon" src="${iconUrl}" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">
                     <div class="p-name" style="color:${color}">${p.name}</div>
@@ -439,10 +436,9 @@
         const edContainer = document.getElementById('editor-container');
         edContainer.style.display = 'block';
         document.getElementById('ed-title').innerText = `${playerName} 장비 데이터`;
-        document.getElementById('ed-sub').innerText = "장비 정보를 불러오는 중입니다...";
+        document.getElementById('ed-sub').innerText = "장비 정보를 불러오는 중...";
         document.getElementById('gear-grid').innerHTML = "";
         
-        // 클릭 즉시 화면 최상단의 에디터 탭으로 이동 (부드러운 스크롤)
         window.scrollTo({ top: edContainer.offsetTop - 20, behavior: 'smooth' });
         
         const q = `query { reportData { report(code: "${code}") { table(fightIDs: [${fid}], dataType: Summary) } } }`;
