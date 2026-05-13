@@ -39,14 +39,14 @@
         .inline-party-container { grid-column: 1 / -1; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; padding: 25px; animation: slideDown 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 15px; }
         .player-card { background: #111; padding: 16px; border-radius: 14px; display: flex; align-items: center; gap: 12px; border-left: 5px solid #444; cursor: pointer; transition: 0.2s; }
-        .player-card:hover { background: #1a1a24; transform: scale(1.02); }
+        .player-card:hover { background: #1a1a24; transform: scale(1.02); border-color: var(--primary); }
         .job-icon { width: 32px; height: 32px; }
         .p-name { font-weight: 700; font-size: 15px; flex: 1; }
         .p-rank { font-weight: 900; font-size: 14px; }
 
         /* 장비 에디터 및 모달 */
         #editor-container { display: none; margin-top: 40px; padding-bottom: 50px; animation: slideDown 0.4s ease; }
-        .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 15px; }
+        .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 15px; margin-top: 20px;}
         .gear-card { background: var(--card); border: 1px solid #2d2d33; padding: 18px; border-radius: 16px; display: flex; align-items: center; gap: 15px; }
         .gear-card.editable { cursor: pointer; border-color: var(--primary); box-shadow: 0 0 10px rgba(192, 132, 252, 0.2); }
         .item-thumb { width: 56px; height: 56px; border-radius: 12px; background: #000; border: 1px solid #333; }
@@ -102,26 +102,24 @@
         <div class="tab" onclick="renderFights('other', this)">기타</div>
     </div>
     
-    <!-- 전투 목록 컨테이너 (클릭 시 이 내부에 인라인 파티창 삽입) -->
     <div id="fight-list"></div>
 
     <!-- 장비 에디터 -->
     <div id="editor-container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 20px; background: #111; border-radius: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #111; border-radius: 15px; border-left: 5px solid var(--primary);">
             <div>
                 <h2 id="ed-title" style="margin:0; color: var(--primary);">장비 정보</h2>
-                <div id="ed-sub" style="color:var(--sub); font-size:14px;">캐릭터 장비 정보</div>
+                <div id="ed-sub" style="color:var(--sub); font-size:14px; margin-top:5px;">캐릭터 장비 정보</div>
             </div>
             <div style="text-align: right">
-                <button id="mode-btn" class="btn" style="background:var(--accent)" onclick="toggleMode()">장비 검색/편집 모드</button>
-                <div id="ed-ilvl" style="font-size: 30px; font-weight: 900; color: var(--primary);">i000</div>
+                <button id="mode-btn" class="btn" style="background:var(--accent); margin-bottom:8px;" onclick="toggleMode()">장비 편집 모드</button>
+                <div id="ed-ilvl" style="font-size: 30px; font-weight: 900; color: var(--text);">i000</div>
             </div>
         </div>
         <div id="gear-grid" class="gear-grid"></div>
     </div>
 </div>
 
-<!-- 모달 UI (아이템 검색) -->
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
     <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색</h3>
@@ -135,6 +133,7 @@
     let gState = [], editMode = false, curIdx = { s: null };
 
     const translateMap = {
+        "Fatebreaker": "페이트 브레이커",
         "Enuo": "에누오",
         "Doomtrain": "마열차",
         "Lindwurm": "린드블룸",
@@ -157,7 +156,6 @@
         "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)"
     };
 
-    // 직업 정렬 우선순위 (탱 > 힐 > 딜)
     const roleOrder = {
         "Paladin": 1, "Warrior": 1, "DarkKnight": 1, "Gunbreaker": 1,
         "WhiteMage": 2, "Scholar": 2, "Astrologian": 2, "Sage": 2,
@@ -168,7 +166,6 @@
 
     const getT = (s) => {
         if (!s) return "";
-        // 명칭 묶기 로직 (페이트 브레이커, 오라클 등)
         if (s.includes("Oracle") || s.includes("Usurper") || s.includes("Fatebreaker")) return "절 또 하나의 미래";
         
         let r = s;
@@ -181,7 +178,6 @@
 
     const getC = (p) => p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)';
 
-    // 아이템 DB 불러오기
     async function initDB() {
         try {
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
@@ -191,7 +187,7 @@
                 return { id: c[0], name: (c[1]||"").replace(/"/g,''), icon: (c[2]||"0").padStart(6,'0'), ilvl: parseInt(c[12])||0 };
             }).filter(i => i.name);
             dbLoaded = true;
-        } catch(e) { console.error("아이템 DB를 불러올 수 없습니다."); }
+        } catch(e) { console.error("아이템 DB 오류"); }
     }
 
     async function auth() {
@@ -204,19 +200,22 @@
             });
             const d = await res.json();
             if(d.access_token) { authToken = d.access_token; alert("API 인증 성공!"); document.getElementById('search-btn').disabled = false; }
-        } catch(e) { alert("인증 실패: 정보를 확인하세요."); }
+        } catch(e) { alert("인증 실패"); }
     }
 
     async function fetchCharacter() {
         const name = document.getElementById('cnick').value.trim();
         const server = document.getElementById('sv-select').value;
-        
+        const btn = document.getElementById('search-btn');
+        btn.innerText = "로딩 중...";
+
+        // fightPercentage(진행률) 필드 쿼리 추가
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
                     name 
                     zoneRankings
-                    recentReports(limit: 100) { data { code title fights { id name difficulty kill } } } 
+                    recentReports(limit: 100) { data { code title fights { id name difficulty kill fightPercentage } } } 
                 } 
             } 
         }`;
@@ -230,8 +229,9 @@
             const char = json.data?.characterData?.character;
             if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
+            // 올스타 점수 FFlogs 공식 키값 매칭
             const zr = char.zoneRankings || {};
-            const score = zr.allStarPoints || zr.allstarPoints || zr.rankPoints || 0;
+            const score = zr.allStarPoints || zr.points || zr.bestAllStarPoints || zr.rankPoints || 0;
             const pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || zr.rankPercent || 0;
 
             document.getElementById('top-user-bar').style.display = 'flex';
@@ -244,13 +244,13 @@
             reports = char.recentReports.data;
             document.getElementById('tab-nav').style.display = 'flex';
             renderFights('all', document.querySelector('.tab'));
-        } catch(e) { alert("데이터 통신 중 오류가 발생했습니다."); }
+        } catch(e) { alert("통신 오류가 발생했습니다."); }
+        finally { btn.innerText = "불러오기"; }
     }
 
     function renderFights(type, el) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
-        // 인라인 파티창 모두 제거
         document.querySelectorAll('.inline-party-container').forEach(e => e.remove());
 
         let html = "";
@@ -276,9 +276,17 @@
 
             if(show) {
                 const diffText = isUlt ? '절' : isSav ? '영웅' : isExt ? '극' : '기타';
-                const killText = f.kill ? "" : "<span style='color:#e03131; font-weight:bold; font-size:11px; border:1px solid #e03131; padding:2px 4px; border-radius:4px; margin-left:6px;'>트라이</span>";
                 
-                // 클릭 시 viewParty 호출하여 바로 아래에 띄움
+                // 트라이 시 퍼센트(진행도) 계산 
+                let killText = "";
+                if (!f.kill) {
+                    let prog = "";
+                    if (f.fightPercentage !== undefined && f.fightPercentage !== null) {
+                        prog = ` (${(f.fightPercentage / 100).toFixed(1)}%)`;
+                    }
+                    killText = `<span style='color:#e03131; font-weight:bold; font-size:11px; border:1px solid #e03131; padding:2px 4px; border-radius:4px; margin-left:6px;'>트라이${prog}</span>`;
+                }
+
                 html += `<div class="fight-item" onclick="viewParty('${f.code}', ${f.id}, '${getT(f.name)}', this)">
                     <div style="font-weight: 900; font-size: 17px; color: var(--primary)">${getT(f.name)}</div>
                     <div style="color: var(--sub); font-size: 12px; margin-top: 6px;">
@@ -287,25 +295,22 @@
                 </div>`;
             }
         });
-        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>해당 탭의 기록이 없습니다.</div>";
+        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>기록이 없습니다.</div>";
     }
 
-    // 인라인(아코디언) 방식으로 파티 정보를 띄우는 함수
     async function viewParty(code, fid, title, el) {
         const existingId = `inline-${code}-${fid}`;
         if(document.getElementById(existingId)) {
-            document.getElementById(existingId).remove(); // 다시 누르면 닫힘
+            document.getElementById(existingId).remove();
             return;
         }
 
-        // 다른 열려있는 창 모두 닫기
         document.querySelectorAll('.inline-party-container').forEach(e => e.remove());
 
-        // 컨테이너 생성 후 바로 밑에 삽입
         const container = document.createElement('div');
         container.id = existingId;
         container.className = 'inline-party-container';
-        container.innerHTML = `<h3 style="margin-top:0; color:var(--primary)">[${title}] 트라이 파티원 상세 정보 <small style="color:var(--sub); font-size:12px;">(닉네임 클릭 시 장비 확인/수정)</small></h3><div id="list-${code}-${fid}" class="party-grid">데이터 로딩 중...</div>`;
+        container.innerHTML = `<h3 style="margin-top:0; color:var(--primary)">[${title}] 전투 파티원 <small style="color:var(--sub); font-size:12px; margin-left:8px;">(닉네임을 클릭하면 장비 에디터가 열립니다)</small></h3><div id="list-${code}-${fid}" class="party-grid"><span style="color:var(--sub)">데이터 로딩 중...</span></div>`;
         el.parentNode.insertBefore(container, el.nextSibling);
 
         const list = document.getElementById(`list-${code}-${fid}`);
@@ -323,22 +328,20 @@
             });
             const json = await res.json();
             const report = json.data?.reportData?.report;
-            if (!report) throw new Error("리포트 응답 에러");
+            if (!report) throw new Error("API 오류");
 
             const validIds = report.fights?.[0]?.friendlyPlayers || [];
             const actors = report.masterData?.actors || [];
             const rankings = report.rankings?.data?.[0]?.rankings || [];
 
-            // 불필요한 엔티티 제외
             const excludedNames = ["Limit Break", "Multiple Players"];
             let party = actors.filter(a => validIds.includes(a.id) && !excludedNames.includes(a.name) && a.subType !== "LimitBreak");
             
             if(party.length === 0) {
-                list.innerHTML = "<span style='color:#ff4d4d'>파티원 정보를 찾을 수 없습니다. (비공개 로그이거나 데이터 누락)</span>";
+                list.innerHTML = "<span style='color:#ff4d4d'>파티원 정보를 찾을 수 없습니다. (비공개 로그 등)</span>";
                 return;
             }
 
-            // 탱커 > 힐러 > 딜러 순서 정렬
             party.sort((a, b) => (roleOrder[a.subType] || 99) - (roleOrder[b.subType] || 99));
 
             let h = "";
@@ -347,25 +350,30 @@
                 const rankObj = rankings.find(r => r.name === p.name);
                 const rankText = rankObj ? `${rankObj.percentile.toFixed(1)}%` : "-";
                 
-                // 클릭 시 장비 에디터 오픈
-                h += `<div class="player-card" style="border-left-color: ${color}" onclick="openGear('${code}', ${fid}, '${p.name}', '${p.subType}')">
+                // 클릭 충돌 방지 및 안전한 문자열 변환 적용
+                const safeName = p.name.replace(/'/g, "\\'");
+                h += `<div class="player-card" style="border-left-color: ${color}" onclick="openGear('${code}', ${fid}, '${safeName}', '${p.subType}'); event.stopPropagation();">
                     <img class="job-icon" src="https://xivapi.com/cj/1/${p.subType.toLowerCase()}.png" onerror="this.src='https://xivapi.com/cj/1/error.png'">
                     <div class="p-name" style="color:${color}">${p.name}</div>
                     <div class="p-rank" style="color:${rankObj ? getC(rankObj.percentile) : 'var(--sub)'}">${rankText}</div>
                 </div>`;
             });
             list.innerHTML = h;
-        } catch(e) { list.innerHTML = `<span style='color:#ff4d4d'>데이터 로드 오류: API 서버 응답이 없습니다.</span>`; }
+        } catch(e) { list.innerHTML = `<span style='color:#ff4d4d'>API 서버에서 해당 데이터를 제공하지 않습니다.</span>`; }
     }
 
-    // 장비 확인 및 편집 (DB 검색 포함)
+    // 장비 확인 및 편집 로직
     async function openGear(code, fid, playerName, job) {
-        if(!dbLoaded) return alert("아이템 데이터베이스가 로드되지 않았습니다.");
+        if(!dbLoaded) return alert("아이템 데이터베이스(DB)를 로딩 중입니다. 잠시만 기다려주세요.");
         
-        document.getElementById('editor-container').style.display = 'block';
+        const edContainer = document.getElementById('editor-container');
+        edContainer.style.display = 'block';
         document.getElementById('ed-title').innerText = `${playerName} 장비 데이터`;
         document.getElementById('ed-sub').innerText = "장비 정보를 불러오는 중입니다...";
         document.getElementById('gear-grid').innerHTML = "";
+        
+        // 클릭하자마자 바로 창이 있는 곳으로 이동하여 사용자에게 피드백 제공
+        window.scrollTo({ top: edContainer.offsetTop - 20, behavior: 'smooth' });
         
         const q = `query { reportData { report(code: "${code}") { table(fightIDs: [${fid}], dataType: Summary) } } }`;
         try {
@@ -374,22 +382,25 @@
                 body: JSON.stringify({ query: q })
             });
             const json = await res.json();
-            const details = json.data?.reportData?.report?.table?.data?.playerDetails;
-            if(!details) throw new Error();
+            const tableData = json.data?.reportData?.report?.table?.data || json.data?.reportData?.report?.table;
+            
+            if(!tableData || !tableData.playerDetails) throw new Error("장비 데이터가 누락되었습니다.");
 
+            const details = tableData.playerDetails;
             const allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
             const player = allPlayers.find(p => p.name === playerName);
 
             if(!player || !player.gear || player.gear.length === 0) {
-                document.getElementById('ed-sub').innerText = "FFlogs에 장비 데이터가 기록되지 않은 로그입니다.";
+                document.getElementById('ed-sub').innerText = "이 리포트에는 해당 플레이어의 장비 기록이 존재하지 않습니다. (트라이 로그 등)";
                 return;
             }
 
-            document.getElementById('ed-sub').innerText = job;
+            document.getElementById('ed-sub').innerText = `직업: ${job}`;
             gState = player.gear.map(g => ({ id: String(g.id) }));
             drawEditor();
-            window.scrollTo({ top: document.getElementById('editor-container').offsetTop, behavior: 'smooth' });
-        } catch(e) { document.getElementById('ed-sub').innerText = "장비 정보를 가져오는데 실패했습니다."; }
+        } catch(e) { 
+            document.getElementById('ed-sub').innerText = "장비 정보를 가져오는데 실패했습니다. (트라이 기록의 경우 FFlogs가 장비 정보를 제공하지 않을 수 있습니다)"; 
+        }
     }
 
     function drawEditor() {
