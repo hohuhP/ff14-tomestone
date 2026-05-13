@@ -52,7 +52,7 @@
         .fflogs-link { background: #2d2d33; color: var(--text); font-size: 11px; padding: 5px 10px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.2s; }
         .fflogs-link:hover { background: var(--primary); color: #000; }
 
-        /* 좌측: 파티원 / 우측: 장비 나란히 배치 */
+        /* 좌측 파티원 / 우측 장비 나란히 배치 */
         .inline-party-container { grid-column: 1 / -1; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; padding: 25px; animation: slideDown 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; gap: 20px; flex-wrap: wrap; }
         .party-side { flex: 1; min-width: 300px; }
         .gear-side { flex: 1; min-width: 340px; background: #111; padding: 20px; border-radius: 15px; border-left: 5px solid var(--primary); }
@@ -90,7 +90,7 @@
             </div>
         </div>
         <div style="text-align: right">
-            <div id="as-points-label" style="font-size: 12px; color: var(--sub); font-weight: 800;">SERVER RANK (서버 순위)</div>
+            <div id="as-points-label" style="font-size: 12px; color: var(--sub); font-weight: 800;">BEST RANK (최고 순위)</div>
             <div id="as-points" style="font-size: 32px; font-weight: 900; color: var(--primary);">-</div>
         </div>
     </div>
@@ -218,6 +218,7 @@
         const btn = document.getElementById('search-btn');
         btn.innerText = "로딩 중...";
 
+        // 진행 시간을 구하기 위해 startTime과 endTime 쿼리 추가
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
@@ -226,7 +227,7 @@
                     recentReports(limit: 25) { 
                         data { 
                             code title 
-                            fights { id name difficulty kill fightPercentage bossPercentage friendlyPlayers } 
+                            fights { id name difficulty kill fightPercentage bossPercentage friendlyPlayers startTime endTime } 
                             masterData { actors(type: "Player") { id name subType } }
                         } 
                     } 
@@ -252,23 +253,33 @@
 
             const zr = char.zoneRankings || {};
             let rankText = "-";
-            let pct = 0;
+            let pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || zr.rankPercent || 0;
             
-            if (Array.isArray(zr)) {
-                let bestRank = Infinity;
-                zr.forEach(z => {
-                    if(z.rankPercent > pct) pct = z.rankPercent;
-                    if(z.allStarServerRank && z.allStarServerRank < bestRank) bestRank = z.allStarServerRank;
+            let bestServerRank = zr.allStarServerRank || zr.serverRank || Infinity;
+            let bestGlobalRank = zr.allStarRank || zr.rank || Infinity;
+
+            if (zr.rankings && Array.isArray(zr.rankings)) {
+                zr.rankings.forEach(r => {
+                    if (r.rankPercent && r.rankPercent > pct) pct = r.rankPercent;
+                    if (r.serverRank && r.serverRank < bestServerRank) bestServerRank = r.serverRank;
+                    if (r.globalRank && r.globalRank < bestGlobalRank) bestGlobalRank = r.globalRank;
                 });
-                if (bestRank !== Infinity) rankText = `${bestRank.toLocaleString()}위`;
+            }
+
+            if (Array.isArray(zr)) {
+                zr.forEach(z => {
+                    if (z.rankPercent && z.rankPercent > pct) pct = z.rankPercent;
+                    if (z.allStarServerRank && z.allStarServerRank < bestServerRank) bestServerRank = z.allStarServerRank;
+                    if (z.serverRank && z.serverRank < bestServerRank) bestServerRank = z.serverRank;
+                });
+            }
+
+            if (bestServerRank !== Infinity) {
+                rankText = `서버 ${bestServerRank.toLocaleString()}위`;
+            } else if (bestGlobalRank !== Infinity) {
+                rankText = `글로벌 ${bestGlobalRank.toLocaleString()}위`;
             } else {
-                pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || zr.rankPercent || 0;
-                const sRank = zr.allStarServerRank || zr.serverRank;
-                const gRank = zr.allStarRank || zr.rank; 
-                
-                if (sRank) rankText = `서버 ${sRank.toLocaleString()}위`;
-                else if (gRank) rankText = `글로벌 ${gRank.toLocaleString()}위`;
-                else rankText = "순위 없음";
+                rankText = "순위 집계 중";
             }
 
             document.getElementById('top-user-bar').style.display = 'flex';
@@ -280,7 +291,7 @@
             document.getElementById('as-server').innerText = server;
             
             const pointsLabel = document.getElementById('as-points-label');
-            if(pointsLabel) pointsLabel.innerText = "SERVER RANK (서버 순위)";
+            if(pointsLabel) pointsLabel.innerText = "BEST RANK (최고 순위)";
             document.getElementById('as-points').innerText = rankText;
 
             reports = [];
@@ -319,6 +330,17 @@
         if(event) event.stopPropagation();
         const el = document.getElementById(folderId);
         if(el) el.style.display = (el.style.display === 'none') ? 'flex' : 'none';
+    }
+
+    // 트라이 진행 시간 계산 함수
+    function getDurationText(f) {
+        if (f.startTime && f.endTime) {
+            const sec = Math.floor((f.endTime - f.startTime) / 1000);
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return ` (${m}분 ${s}초)`;
+        }
+        return "";
     }
 
     function renderFights(type, el) {
@@ -363,9 +385,7 @@
                 const f = g.fights[0];
                 let killText = "";
                 if (!f.kill) {
-                    let p = f.fightPercentage ?? f.bossPercentage;
-                    let prog = p !== undefined && p !== null ? ` (${(p / 100).toFixed(1)}%)` : "";
-                    killText = `<span style='color:#e03131; font-weight:bold; font-size:11px; border:1px solid #e03131; padding:2px 4px; border-radius:4px; margin-left:6px;'>트라이${prog}</span>`;
+                    killText = `<span style='color:#e03131; font-weight:bold; font-size:11px; border:1px solid #e03131; padding:2px 4px; border-radius:4px; margin-left:6px;'>트라이${getDurationText(f)}</span>`;
                 }
                 html += `<div class="fight-item" onclick="viewParty('${g.code}', ${f.id}, '${getT(f.name)}', this)">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -395,9 +415,7 @@
                     let killText = "";
                     if (f.kill) killText = "<span style='color:var(--accent); font-weight:bold; font-size:11px; border:1px solid var(--accent); padding:2px 4px; border-radius:4px; margin-left:6px;'>클리어</span>";
                     else {
-                        let p = f.fightPercentage ?? f.bossPercentage;
-                        let prog = p !== undefined && p !== null ? ` (${(p / 100).toFixed(1)}%)` : "";
-                        killText = `<span style='color:#e03131; font-weight:bold; font-size:11px; border:1px solid #e03131; padding:2px 4px; border-radius:4px; margin-left:6px;'>트라이${prog}</span>`;
+                        killText = `<span style='color:#e03131; font-weight:bold; font-size:11px; border:1px solid #e03131; padding:2px 4px; border-radius:4px; margin-left:6px;'>트라이${getDurationText(f)}</span>`;
                     }
                     html += `<div class="sub-fight-item" onclick="viewParty('${g.code}', ${f.id}, '${getT(g.name)}', this.parentElement.parentElement, event)">
                         <div>
@@ -419,8 +437,12 @@
     async function viewParty(code, fid, title, el, event) {
         if(event) event.stopPropagation();
 
-        const containerId = `inline-${code}-${fid}`;
+        // 💡 중요: 하이픈(-) 포맷으로 완벽히 통일
+        const cacheKey = `${code}-${fid}`; 
+        const containerId = `inline-${cacheKey}`;
+        
         if(document.getElementById(containerId)) {
+            // 열려있는 로그를 다시 클릭하면 컨테이너가 삭제되며 파티창/장비창이 동시에 완전히 닫힙니다.
             document.getElementById(containerId).remove();
             return;
         }
@@ -434,21 +456,20 @@
         container.innerHTML = `
             <div class="party-side">
                 <h3 style="margin-top:0; color:var(--primary)">[${title}] 전투 참여자</h3>
-                <div id="list-${code}-${fid}" class="party-grid"><span style="color:var(--sub)">데이터 로딩 중...</span></div>
+                <div id="list-${cacheKey}" class="party-grid"><span style="color:var(--sub)">데이터 로딩 중...</span></div>
             </div>
             <div class="gear-side">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 id="gear-title-${code}-${fid}" style="margin:0; color:var(--primary)">장비 정보</h3>
-                    <button id="mode-btn-${code}-${fid}" class="btn" style="padding:8px 16px; font-size:12px; display:none;" onclick="toggleMode('${code}-${fid}')">편집 모드</button>
+                    <h3 id="gear-title-${cacheKey}" style="margin:0; color:var(--primary)">장비 정보</h3>
+                    <button id="mode-btn-${cacheKey}" class="btn" style="padding:8px 16px; font-size:12px; display:none;" onclick="toggleMode('${cacheKey}')">편집 모드</button>
                 </div>
-                <div style="color:var(--sub); font-size:12px; margin-top:5px; margin-bottom:15px;" id="gear-sub-${code}-${fid}">장비 데이터를 불러오고 있습니다...</div>
-                <div id="gear-grid-${code}-${fid}" class="gear-grid"></div>
+                <div style="color:var(--sub); font-size:12px; margin-top:5px; margin-bottom:15px;" id="gear-sub-${cacheKey}">장비 데이터를 불러오고 있습니다...</div>
+                <div id="gear-grid-${cacheKey}" class="gear-grid"></div>
             </div>
         `;
         
         el.parentNode.insertBefore(container, el.nextSibling);
-        const list = document.getElementById(`list-${code}-${fid}`);
-        const cacheKey = `${code}_${fid}`;
+        const list = document.getElementById(`list-${cacheKey}`);
         
         try {
             if (!dataCache[cacheKey]) {
@@ -501,12 +522,10 @@
             });
             list.innerHTML = h;
 
-            // ★ 본인 장비를 무조건 첫 번째로 자동 전개!
             const searchedChar = document.getElementById('as-name').innerText;
             const myActor = party.find(p => p.name === searchedChar);
             if(myActor) {
-                // 직접 호출 시에는 backslash 탈출문자를 넣지 않습니다! (이것이 버그 원인이었음)
-                openGearFromCache(cacheKey, myActor.name, myActor.subType);
+                openGearFromCache(cacheKey, myActor.name.replace(/'/g, "\\'"), myActor.subType);
             } else {
                 document.getElementById(`gear-sub-${cacheKey}`).innerText = "좌측에서 장비를 확인할 파티원을 클릭하세요.";
             }
@@ -519,7 +538,6 @@
         }
     }
 
-    // 데이터 파싱 에러(Crash) 방지용 완벽 예외처리 적용 함수
     function openGearFromCache(cacheKey, playerName, job) {
         try {
             if(!dbLoaded) {
@@ -535,7 +553,8 @@
             const gridEl = document.getElementById(`gear-grid-${curActiveGearId}`);
             const modeBtn = document.getElementById(`mode-btn-${curActiveGearId}`);
             
-            titleEl.innerText = `${playerName} 장비`;
+            // 데이터 처리 중임을 표시
+            titleEl.innerHTML = `${playerName} 장비`;
             subEl.innerText = "데이터를 처리하는 중...";
             gridEl.innerHTML = "";
             modeBtn.style.display = "none";
@@ -543,13 +562,11 @@
             const reportData = dataCache[cacheKey];
             const tableData = reportData?.table?.data || reportData?.table;
             
-            // 데이터 누락 방어 1
             if(!tableData || !tableData.playerDetails) {
                 subEl.innerText = "이 리포트는 상세 장비 데이터를 제공하지 않습니다. (오래된 로그거나 짧은 트라이)";
                 return;
             }
 
-            // FFlogs가 객체 대신 빈 배열을 보내는 악질적 버그 방어 2
             const details = tableData.playerDetails;
             let allPlayers = [];
             if (Array.isArray(details)) {
@@ -560,9 +577,8 @@
 
             const player = allPlayers.find(p => p.name === playerName);
 
-            // 데이터 누락 방어 3
             if(!player || !player.gear || player.gear.length === 0) {
-                subEl.innerText = "이 리포트에는 장비 데이터가 기록되어 있지 않습니다.";
+                subEl.innerText = "해당 플레이어의 장비 기록이 존재하지 않습니다.";
                 return;
             }
 
