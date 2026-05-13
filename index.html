@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFXIV KR PRO LOGS (FIXED)</title>
+    <title>FFXIV KR PRO LOGS (AUTH FIXED)</title>
     <style>
         :root { 
             --bg: #0a0a0c; --card: #16161a; --panel: #1f1f23;
@@ -10,10 +10,10 @@
             --rank-gold: #ffb100; --rank-pink: #e268a8; --rank-orange: #ff8000; --rank-purple: #a335ee;
             --rank-blue: #0070ff; --rank-green: #1eff00; --rank-grey: #666;
         }
-        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
 
-        /* 상단 고정 올스타 헤더 */
+        /* 상단 올스타 헤더 */
         .allstar-header { 
             display: none; position: sticky; top: 0; z-index: 100;
             background: rgba(22, 22, 26, 0.95); backdrop-filter: blur(15px);
@@ -32,7 +32,7 @@
         .btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn:disabled { background: #444; cursor: not-allowed; }
 
-        /* 탭 및 로그 리스트 */
+        /* 탭 및 목록 */
         .tab-menu { display: none; gap: 10px; margin-bottom: 20px; background: #1a1a1e; padding: 6px; border-radius: 12px; width: fit-content; }
         .tab { padding: 10px 25px; cursor: pointer; border-radius: 8px; color: var(--sub); font-weight: 600; }
         .tab.active { background: #2d2d33; color: var(--primary); }
@@ -42,16 +42,17 @@
         .fight-item:hover { border-color: var(--primary); transform: translateY(-3px); }
 
         /* 에디터 */
-        #editor-container { display: none; margin-top: 40px; }
+        #editor-container { display: none; margin-top: 40px; animation: slideUp 0.4s ease-out; }
         .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 15px; }
         .gear-card { background: var(--card); border: 1px solid #2d2d33; padding: 18px; border-radius: 16px; display: flex; align-items: center; gap: 15px; }
-        .gear-card.editable { cursor: pointer; border-color: var(--primary); }
-        .item-thumb { width: 56px; height: 56px; border-radius: 12px; background: #000; }
+        .gear-card.editable { cursor: pointer; border-color: var(--primary); box-shadow: 0 0 15px rgba(192, 132, 252, 0.1); }
+        .item-thumb { width: 56px; height: 56px; border-radius: 12px; background: #000; border: 1px solid #333; }
         .mat-slots { display: flex; gap: 6px; margin-top: 8px; }
-        .mat-circle { width: 24px; height: 24px; border-radius: 50%; background: #000; border: 1px solid #444; overflow: hidden; }
+        .mat-circle { width: 24px; height: 24px; border-radius: 50%; background: #000; border: 1px solid #444; }
 
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 999; backdrop-filter: blur(8px); }
         .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; }
+        @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -66,7 +67,7 @@
             </div>
         </div>
         <div style="text-align: right">
-            <div style="font-size: 12px; color: var(--sub);">ALL-STAR POINTS</div>
+            <div style="font-size: 12px; color: var(--sub); font-weight: bold;">ALL-STAR POINTS</div>
             <div id="as-points" style="font-size: 26px; font-weight: 900; color: var(--primary);">0</div>
         </div>
     </div>
@@ -78,7 +79,7 @@
             <button id="auth-btn" class="btn" onclick="startAuth()">인증 및 연동</button>
         </div>
         <div class="input-group" style="grid-template-columns: 100px 1fr 1fr;">
-            <input type="text" value="KR" readonly style="text-align: center; color: var(--accent); font-weight: bold;">
+            <input type="text" value="KOREA" readonly style="text-align: center; color: var(--accent); font-weight: bold;">
             <select id="sv-select">
                 <option value="Fenrir">펜리르</option>
                 <option value="Chocobo">초코보</option>
@@ -91,16 +92,22 @@
     </div>
 
     <div id="tab-nav" class="tab-menu">
-        <div class="tab active" onclick="sortFights('all', this)">전체</div>
+        <div class="tab active" onclick="sortFights('all', this)">전체 리포트</div>
         <div class="tab" onclick="sortFights('savage', this)">아르카디아(영웅)</div>
         <div class="tab" onclick="sortFights('ultimate', this)">절 시리즈</div>
     </div>
     <div id="fight-list"></div>
 
     <div id="editor-container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1 id="ed-title" style="margin:0">장비 에디터</h1>
-            <button id="mode-btn" class="btn" onclick="toggleMode()">장비 수정 모드</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 20px; background: #111; border-radius: 15px;">
+            <div>
+                <h2 id="ed-title" style="margin:0">전투 데이터</h2>
+                <div id="ed-sub" style="color:var(--sub); font-size:14px;"></div>
+            </div>
+            <div style="text-align: right">
+                <button id="mode-btn" class="btn" style="background:var(--accent)" onclick="toggleMode()">장비 편집 모드</button>
+                <div id="ed-ilvl" style="font-size: 30px; font-weight: 900; color: var(--primary);">i000</div>
+            </div>
         </div>
         <div id="gear-grid" class="gear-grid"></div>
     </div>
@@ -109,7 +116,7 @@
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
     <h3 style="margin-top:0">아이템 변경</h3>
-    <input type="text" id="m-search" placeholder="검색어..." oninput="doSearch(this.value)">
+    <input type="text" id="m-search" placeholder="아이템 이름 검색..." oninput="doSearch(this.value)">
     <div id="m-results" style="max-height: 350px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
 
@@ -121,7 +128,6 @@
     const getC = (p) => p>=100?'var(--rank-gold)':p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)';
     const translate = (n) => { for(let k in dungeonMap) n = n.replace(k, dungeonMap[k]); return n; };
 
-    // DB 로드 (전역 오류 방지)
     async function initDB() {
         try {
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
@@ -132,16 +138,15 @@
             }).filter(i => i.name);
             mdb = db.filter(i => i.name.includes("마테리"));
             dbLoaded = true;
-            console.log("DB Loaded");
-        } catch(e) { alert("아이템 데이터를 불러오지 못했습니다."); }
+        } catch(e) { console.error("DB Load Fail"); }
     }
 
     async function startAuth() {
-        if(!dbLoaded) return alert("데이터베이스를 로딩 중입니다. 잠시만 기다려주세요.");
+        if(!dbLoaded) return alert("아이템 데이터를 불러오는 중입니다. 잠시만 기다려주세요.");
         
         const btn = document.getElementById('auth-btn');
-        const id = document.getElementById('cid').value;
-        const sec = document.getElementById('csec').value;
+        const id = document.getElementById('cid').value.trim();
+        const sec = document.getElementById('csec').value.trim();
         
         if(!id || !sec) return alert("Client ID와 Secret을 입력하세요.");
 
@@ -149,17 +154,30 @@
         btn.disabled = true;
 
         try {
+            // 표준 OAuth2 Client Credentials Flow (Basic Auth Header 포함)
             const authRes = await fetch("https://www.fflogs.com/oauth/token", {
-                method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `grant_type=client_credentials&client_id=${id}&client_secret=${sec}`
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": "Basic " + btoa(id + ":" + sec)
+                },
+                body: "grant_type=client_credentials"
             });
+
+            if (!authRes.ok) {
+                const err = await authRes.json();
+                throw new Error(err.error_description || "인증 정보가 올바르지 않습니다.");
+            }
+
             const authData = await authRes.json();
             authToken = authData.access_token;
             
-            if(!authToken) throw new Error();
+            if(!authToken) throw new Error("토큰 발급에 실패했습니다.");
             await loadCharData();
+            
         } catch(e) {
-            alert("인증 실패: ID/Secret을 확인하세요.");
+            alert("인증 실패: " + e.message);
+            console.error(e);
         } finally {
             btn.innerText = "인증 및 연동";
             btn.disabled = false;
@@ -179,11 +197,9 @@
             body: JSON.stringify({ query: q })
         });
         const json = await res.json();
-        if(!json.data.characterData.character) return alert("캐릭터를 찾을 수 없습니다.");
+        const char = json.data?.characterData?.character;
+        if(!char) return alert("캐릭터를 찾을 수 없습니다. 이름과 서버를 확인하세요.");
 
-        const char = json.data.characterData.character;
-        
-        // 올스타 고정 UI 업데이트
         const asp = char.zoneRankings.rankPoints || 0;
         const asq = char.zoneRankings.rankPercent || 0;
         document.getElementById('top-user-bar').style.display = 'flex';
@@ -208,10 +224,9 @@
                 const isSavage = f.difficulty === 101;
                 const isUltimate = f.difficulty === 5;
                 if(type === 'all' || (type === 'savage' && isSavage) || (type === 'ultimate' && isUltimate)) {
-                    const p = 99; // 표시용 더미
                     h += `<div class="fight-item" onclick="openGear('${r.code}', ${f.id}, '${translate(f.name)}')">
-                        <div style="width:10px; height:40px; background:${getC(p)}; border-radius:5px;"></div>
-                        <div style="flex:1"><b>${translate(f.name)}</b><br><small>${r.code}</small></div>
+                        <div style="width:10px; height:40px; background:var(--primary); border-radius:5px;"></div>
+                        <div style="flex:1"><b style="font-size:15px;">${translate(f.name)}</b><br><small style="color:var(--sub)">${r.code}</small></div>
                     </div>`;
                 }
             });
@@ -230,6 +245,7 @@
         
         gState = player.gear.map(g => ({ id: String(g.id), mats: g.materia ? g.materia.map(m => String(m.id)) : Array(5).fill(null) }));
         document.getElementById('ed-title').innerText = title;
+        document.getElementById('ed-sub').innerText = `${player.name} (${player.type})`;
         document.getElementById('editor-container').style.display = 'block';
         window.scrollTo({ top: document.getElementById('editor-container').offsetTop - 100, behavior: 'smooth' });
         drawEditor();
@@ -237,25 +253,29 @@
 
     function drawEditor() {
         const labels = ["무기", "보조", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지1", "반지2"];
+        let totalIlvl = 0;
         document.getElementById('gear-grid').innerHTML = gState.map((g, i) => {
-            const it = db.find(x => x.id === g.id) || { name: "데이터 없음", icon: "000001", ilvl: 0 };
+            const it = db.find(x => x.id === g.id) || { name: "정보 없음", icon: "000001", ilvl: 0 };
+            totalIlvl += it.ilvl;
             return `<div class="gear-card ${editMode ? 'editable' : ''}" onclick="${editMode ? `openSearch(${i}, null)` : ''}">
                 <img class="item-thumb" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png">
                 <div style="flex:1">
-                    <small style="color:var(--sub)">${labels[i]}</small>
-                    <div style="font-weight:bold; font-size:14px;">${it.name}</div>
+                    <small style="color:var(--sub); font-weight:bold;">${labels[i]}</small>
+                    <div style="font-weight:bold; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;">${it.name}</div>
                     <div class="mat-slots">
-                        ${g.mats.map((m, mi) => `<div class="mat-circle"></div>`).join('')}
+                        ${g.mats.map(m => `<div class="mat-circle"></div>`).join('')}
                     </div>
                 </div>
-                <div style="color:var(--primary); font-weight:900;">i${it.ilvl}</div>
+                <div style="color:var(--primary); font-weight:900; font-size:18px;">i${it.ilvl}</div>
             </div>`;
         }).join('');
+        document.getElementById('ed-ilvl').innerText = `i${(totalIlvl/12).toFixed(2)}`;
     }
 
     function toggleMode() {
         editMode = !editMode;
-        document.getElementById('mode-btn').innerText = editMode ? "수정 완료" : "장비 수정 모드";
+        document.getElementById('mode-btn').innerText = editMode ? "수정 완료" : "장비 편집 모드";
+        document.getElementById('mode-btn').style.background = editMode ? "#3b82f6" : "var(--accent)";
         drawEditor();
     }
 
@@ -263,15 +283,18 @@
         curIdx = { s, m };
         document.getElementById('m-bg').style.display = 'block';
         document.getElementById('m-ui').style.display = 'block';
+        document.getElementById('m-search').focus();
     }
 
     function doSearch(v) {
         if(v.length < 2) return;
         const target = curIdx.m === null ? db : mdb;
-        const res = target.filter(i => i.name.includes(v)).slice(0, 10);
+        const res = target.filter(i => i.name.includes(v)).slice(0, 15);
         document.getElementById('m-results').innerHTML = res.map(i => `
-            <div style="padding:10px; cursor:pointer; border-bottom:1px solid #333;" onclick="pick('${i.id}')">${i.name} (i${i.ilvl})</div>
-        `).join('');
+            <div style="padding:12px; cursor:pointer; border-bottom:1px solid #333; display:flex; align-items:center; gap:10px;" onclick="pick('${i.id}')">
+                <img src="https://xivapi.com/i/${i.icon.substring(0,3)}000/${i.icon}.png" width="30">
+                <span>${i.name} <small style="color:var(--primary)">(i${i.ilvl})</small></span>
+            </div>`).join('');
     }
 
     function pick(id) {
