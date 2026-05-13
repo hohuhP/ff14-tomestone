@@ -66,7 +66,7 @@
 
         .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-top: 15px;}
         .gear-card { background: var(--card); border: 1px solid #2d2d33; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
-        .gear-card.editable { cursor: pointer; border-color: var(--primary); box-shadow: 0 0 10px rgba(192, 132, 252, 0.2); }
+        .gear-card.editable { cursor: pointer; border-color: var(--primary); box-shadow: 0 0 10px rgba(192, 132, 252, 0.1); }
         .gear-card.editable:hover { transform: translateY(-3px); background: #1a1a24; }
         .item-thumb { width: 48px; height: 48px; border-radius: 10px; background: #000; border: 1px solid #333; }
         
@@ -90,7 +90,7 @@
             </div>
         </div>
         <div style="text-align: right">
-            <div style="font-size: 12px; color: var(--sub); font-weight: 800;">SERVER RANK (서버 순위)</div>
+            <div id="as-points-label" style="font-size: 12px; color: var(--sub); font-weight: 800;">SERVER RANK (서버 순위)</div>
             <div id="as-points" style="font-size: 32px; font-weight: 900; color: var(--primary);">-</div>
         </div>
     </div>
@@ -113,7 +113,6 @@
         </div>
     </div>
 
-    <!-- 검색 필터 창 -->
     <input type="text" id="filter-input" class="search-bar" style="display: none;" placeholder="🔍 보스 이름, 탭 검색 (예: 절, 영웅, 에누오)..." onkeyup="filterLogs()">
 
     <div id="tab-nav" class="tab-menu">
@@ -124,11 +123,9 @@
         <div class="tab" onclick="renderFights('other', this)">기타</div>
     </div>
     
-    <!-- 전투 목록 컨테이너 -->
     <div id="fight-list"></div>
 </div>
 
-<!-- 모달 UI (아이템 검색) -->
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
     <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색</h3>
@@ -140,9 +137,9 @@
     let reports = [], authToken = "";
     let itemDB = [], dbLoaded = false;
     let gState = [], editMode = false;
-    let curActiveGearId = ""; // 현재 열려있는 장비창 ID
+    let curActiveGearId = ""; 
     let curIdx = { s: null };
-    let dataCache = {}; // 파티/장비 데이터 캐싱을 통한 빠른 로드 지원
+    let dataCache = {}; 
 
     const translateMap = {
         "Fatebreaker": "페이트 브레이커",
@@ -221,7 +218,6 @@
         const btn = document.getElementById('search-btn');
         btn.innerText = "로딩 중...";
 
-        // 과부하 방지 limit 25 및 masterData 추가 (내가 참여한 로그만 필터링하기 위함)
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
@@ -247,6 +243,7 @@
 
             if(json.errors) {
                 alert("FFlogs API 에러: " + json.errors[0].message);
+                btn.innerText = "불러오기";
                 return;
             }
 
@@ -257,42 +254,47 @@
             let rankText = "-";
             let pct = 0;
             
-            // 올스타 서버 순위 추출
             if (Array.isArray(zr)) {
                 let bestRank = Infinity;
                 zr.forEach(z => {
                     if(z.rankPercent > pct) pct = z.rankPercent;
-                    if(z.serverRank && z.serverRank < bestRank) bestRank = z.serverRank;
+                    if(z.allStarServerRank && z.allStarServerRank < bestRank) bestRank = z.allStarServerRank;
                 });
                 if (bestRank !== Infinity) rankText = `${bestRank.toLocaleString()}위`;
             } else {
                 pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || zr.rankPercent || 0;
-                const best = zr.bestServerRank || zr.serverRank;
-                if (best) rankText = `${best.toLocaleString()}위`;
+                const sRank = zr.allStarServerRank || zr.serverRank;
+                const gRank = zr.allStarRank || zr.rank; 
+                
+                if (sRank) rankText = `서버 ${sRank.toLocaleString()}위`;
+                else if (gRank) rankText = `글로벌 ${gRank.toLocaleString()}위`;
+                else rankText = "순위 없음";
             }
 
             document.getElementById('top-user-bar').style.display = 'flex';
             document.getElementById('filter-input').style.display = 'block';
+            
             document.getElementById('as-pct').innerText = pct.toFixed(1);
             document.getElementById('as-pct').style.background = getC(pct);
             document.getElementById('as-name').innerText = char.name;
             document.getElementById('as-server').innerText = server;
+            
+            const pointsLabel = document.getElementById('as-points-label');
+            if(pointsLabel) pointsLabel.innerText = "SERVER RANK (서버 순위)";
             document.getElementById('as-points').innerText = rankText;
 
-            // ★ 내가 참여한 로그만 필터링하는 핵심 로직
             reports = [];
             const searchName = char.name;
             char.recentReports.data.forEach(r => {
                 const myActor = r.masterData?.actors?.find(a => a.name === searchName);
                 if (myActor) {
-                    // friendlyPlayers에 내 액터 ID가 들어있는 전투만 남김
                     const myFights = r.fights?.filter(f => f.friendlyPlayers && f.friendlyPlayers.includes(myActor.id)) || [];
                     if (myFights.length > 0) {
                         reports.push({
                             code: r.code,
                             title: r.title,
                             fights: myFights,
-                            actors: r.masterData.actors // 파티원 로딩 시 재사용
+                            actors: r.masterData.actors
                         });
                     }
                 }
@@ -304,7 +306,6 @@
         finally { btn.innerText = "불러오기"; }
     }
 
-    // 텍스트 검색 필터
     function filterLogs() {
         const query = document.getElementById('filter-input').value.toLowerCase();
         const items = document.querySelectorAll('#fight-list > div.fight-folder, #fight-list > div.fight-item');
@@ -323,7 +324,7 @@
     function renderFights(type, el) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
-        document.getElementById('fight-list').innerHTML = ""; // 초기화
+        document.getElementById('fight-list').innerHTML = ""; 
 
         const groups = {};
         reports.forEach(r => {
@@ -430,7 +431,6 @@
         container.id = containerId;
         container.className = 'inline-party-container';
         
-        // 파티원 사이드 & 장비 사이드 나란히 배치 (Side-by-side)
         container.innerHTML = `
             <div class="party-side">
                 <h3 style="margin-top:0; color:var(--primary)">[${title}] 전투 참여자</h3>
@@ -441,22 +441,21 @@
                     <h3 id="gear-title-${code}-${fid}" style="margin:0; color:var(--primary)">장비 정보</h3>
                     <button id="mode-btn-${code}-${fid}" class="btn" style="padding:8px 16px; font-size:12px; display:none;" onclick="toggleMode('${code}-${fid}')">편집 모드</button>
                 </div>
-                <div style="color:var(--sub); font-size:12px; margin-top:5px; margin-bottom:15px;" id="gear-sub-${code}-${fid}">장비 데이터를 로딩 중입니다...</div>
+                <div style="color:var(--sub); font-size:12px; margin-top:5px; margin-bottom:15px;" id="gear-sub-${code}-${fid}">장비 데이터를 불러오고 있습니다...</div>
                 <div id="gear-grid-${code}-${fid}" class="gear-grid"></div>
             </div>
         `;
         
         el.parentNode.insertBefore(container, el.nextSibling);
         const list = document.getElementById(`list-${code}-${fid}`);
-        
         const cacheKey = `${code}_${fid}`;
-        if (!dataCache[cacheKey]) {
-            // 장비(table)와 랭킹을 한 번에 가져옴
-            const q = `query { reportData { report(code: "${code}") { 
-                rankings(fightIDs: [${fid}]) 
-                table(fightIDs: [${fid}], dataType: Summary) 
-            } } }`;
-            try {
+        
+        try {
+            if (!dataCache[cacheKey]) {
+                const q = `query { reportData { report(code: "${code}") { 
+                    rankings(fightIDs: [${fid}]) 
+                    table(fightIDs: [${fid}], dataType: Summary) 
+                } } }`;
                 const res = await fetch("https://www.fflogs.com/api/v2/client", {
                     method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
                     body: JSON.stringify({ query: q })
@@ -464,101 +463,123 @@
                 const json = await res.json();
                 if (!json.data?.reportData?.report) throw new Error("API 오류");
                 dataCache[cacheKey] = json.data.reportData.report;
-            } catch(e) { 
-                list.innerHTML = `<span style='color:#ff4d4d'>서버 오류로 파티 정보를 가져올 수 없습니다.</span>`; 
+            }
+
+            const reportData = dataCache[cacheKey];
+            const rankings = reportData.rankings?.data?.[0]?.rankings || [];
+            
+            const repObj = reports.find(r => r.code === code);
+            const fightObj = repObj?.fights.find(f => f.id === fid);
+            const validIds = fightObj?.friendlyPlayers || [];
+            const actors = repObj?.actors || [];
+
+            const excludedNames = ["Limit Break", "Multiple Players"];
+            let party = actors.filter(a => validIds.includes(a.id) && !excludedNames.includes(a.name) && a.subType !== "LimitBreak");
+            
+            if(party.length === 0) {
+                list.innerHTML = "<span style='color:#ff4d4d'>파티원 정보를 찾을 수 없습니다.</span>";
+                const subEl = document.getElementById(`gear-sub-${cacheKey}`);
+                if(subEl) subEl.innerText = "파티 정보가 없어 장비를 불러올 수 없습니다.";
                 return;
             }
-        }
 
-        const reportData = dataCache[cacheKey];
-        const rankings = reportData.rankings?.data?.[0]?.rankings || [];
-        
-        // 이전에 저장해둔 reports 배열에서 actors와 friendlyPlayers 가져오기
-        const repObj = reports.find(r => r.code === code);
-        const fightObj = repObj?.fights.find(f => f.id === fid);
-        const validIds = fightObj?.friendlyPlayers || [];
-        const actors = repObj?.actors || [];
+            party.sort((a, b) => (roleOrder[a.subType] || 99) - (roleOrder[b.subType] || 99));
 
-        const excludedNames = ["Limit Break", "Multiple Players"];
-        let party = actors.filter(a => validIds.includes(a.id) && !excludedNames.includes(a.name) && a.subType !== "LimitBreak");
-        
-        if(party.length === 0) {
-            list.innerHTML = "<span style='color:#ff4d4d'>파티원 정보를 찾을 수 없습니다. (비공개 로그 등)</span>";
-            return;
-        }
+            let h = "";
+            party.forEach(p => {
+                const color = jobColors[p.subType] || "#ccc";
+                const rankObj = rankings.find(r => r.name === p.name);
+                const rankText = rankObj ? `${rankObj.percentile.toFixed(1)}%` : "-";
+                const iconUrl = `https://assets.rpglogs.com/img/ff/icons/${p.subType}.png`;
+                const safeName = p.name.replace(/'/g, "\\'"); 
 
-        party.sort((a, b) => (roleOrder[a.subType] || 99) - (roleOrder[b.subType] || 99));
+                h += `<div class="player-card" style="border-left-color: ${color}" onclick="openGearFromCache('${cacheKey}', '${safeName}', '${p.subType}'); event.stopPropagation();">
+                    <img class="job-icon" src="${iconUrl}" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">
+                    <div class="p-name" style="color:${color}">${p.name}</div>
+                    <div class="p-rank" style="color:${rankObj ? getC(rankObj.percentile) : 'var(--sub)'}">${rankText}</div>
+                </div>`;
+            });
+            list.innerHTML = h;
 
-        let h = "";
-        party.forEach(p => {
-            const color = jobColors[p.subType] || "#ccc";
-            const rankObj = rankings.find(r => r.name === p.name);
-            const rankText = rankObj ? `${rankObj.percentile.toFixed(1)}%` : "-";
-            const iconUrl = `https://assets.rpglogs.com/img/ff/icons/${p.subType}.png`;
-            const safeName = p.name.replace(/'/g, "\\'"); 
+            // ★ 본인 장비를 무조건 첫 번째로 자동 전개!
+            const searchedChar = document.getElementById('as-name').innerText;
+            const myActor = party.find(p => p.name === searchedChar);
+            if(myActor) {
+                // 직접 호출 시에는 backslash 탈출문자를 넣지 않습니다! (이것이 버그 원인이었음)
+                openGearFromCache(cacheKey, myActor.name, myActor.subType);
+            } else {
+                document.getElementById(`gear-sub-${cacheKey}`).innerText = "좌측에서 장비를 확인할 파티원을 클릭하세요.";
+            }
 
-            // 클릭 시 장비 사이드만 업데이트 (캐시에서 즉시 불러옴)
-            h += `<div class="player-card" style="border-left-color: ${color}" onclick="openGearFromCache('${cacheKey}', '${safeName}', '${p.subType}'); event.stopPropagation();">
-                <img class="job-icon" src="${iconUrl}" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">
-                <div class="p-name" style="color:${color}">${p.name}</div>
-                <div class="p-rank" style="color:${rankObj ? getC(rankObj.percentile) : 'var(--sub)'}">${rankText}</div>
-            </div>`;
-        });
-        list.innerHTML = h;
-
-        // ★ 로그가 열리자마자 "검색한 본인 캐릭터"의 장비를 오른쪽에 즉시 자동 로딩합니다.
-        const searchedChar = document.getElementById('as-name').innerText;
-        const myActor = party.find(p => p.name === searchedChar);
-        if(myActor) {
-            openGearFromCache(cacheKey, myActor.name.replace(/'/g, "\\'"), myActor.subType);
-        } else {
-            document.getElementById(`gear-sub-${cacheKey}`).innerText = "좌측에서 파티원을 클릭하세요.";
+        } catch(e) { 
+            console.error(e);
+            list.innerHTML = `<span style='color:#ff4d4d'>서버 통신 오류로 파티 정보를 가져올 수 없습니다.</span>`; 
+            const subEl = document.getElementById(`gear-sub-${cacheKey}`);
+            if(subEl) subEl.innerText = "서버 응답 오류로 장비를 불러올 수 없습니다.";
         }
     }
 
-    // 캐시를 이용한 즉시 장비 로드 (API 호출 없음)
+    // 데이터 파싱 에러(Crash) 방지용 완벽 예외처리 적용 함수
     function openGearFromCache(cacheKey, playerName, job) {
-        if(!dbLoaded) return alert("아이템 데이터베이스(DB) 로딩 중입니다.");
-        
-        curActiveGearId = cacheKey; 
-        editMode = false; // 다른 사람 누르면 편집 모드 초기화
+        try {
+            if(!dbLoaded) {
+                alert("아이템 데이터베이스(DB)가 아직 로딩 중입니다.");
+                return;
+            }
+            
+            curActiveGearId = cacheKey; 
+            editMode = false;
 
-        const titleEl = document.getElementById(`gear-title-${curActiveGearId}`);
-        const subEl = document.getElementById(`gear-sub-${curActiveGearId}`);
-        const gridEl = document.getElementById(`gear-grid-${curActiveGearId}`);
-        const modeBtn = document.getElementById(`mode-btn-${curActiveGearId}`);
-        
-        titleEl.innerText = `${playerName} 장비`;
-        subEl.innerText = "데이터를 불러오는 중...";
-        gridEl.innerHTML = "";
-        modeBtn.style.display = "none";
-        
-        const reportData = dataCache[cacheKey];
-        const tableData = reportData.table?.data || reportData.table;
-        
-        if(!tableData || !tableData.playerDetails) {
-            subEl.innerText = "장비 상세 정보가 없는 트라이 리포트입니다.";
-            return;
+            const titleEl = document.getElementById(`gear-title-${curActiveGearId}`);
+            const subEl = document.getElementById(`gear-sub-${curActiveGearId}`);
+            const gridEl = document.getElementById(`gear-grid-${curActiveGearId}`);
+            const modeBtn = document.getElementById(`mode-btn-${curActiveGearId}`);
+            
+            titleEl.innerText = `${playerName} 장비`;
+            subEl.innerText = "데이터를 처리하는 중...";
+            gridEl.innerHTML = "";
+            modeBtn.style.display = "none";
+            
+            const reportData = dataCache[cacheKey];
+            const tableData = reportData?.table?.data || reportData?.table;
+            
+            // 데이터 누락 방어 1
+            if(!tableData || !tableData.playerDetails) {
+                subEl.innerText = "이 리포트는 상세 장비 데이터를 제공하지 않습니다. (오래된 로그거나 짧은 트라이)";
+                return;
+            }
+
+            // FFlogs가 객체 대신 빈 배열을 보내는 악질적 버그 방어 2
+            const details = tableData.playerDetails;
+            let allPlayers = [];
+            if (Array.isArray(details)) {
+                allPlayers = details; 
+            } else if (typeof details === 'object') {
+                allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
+            }
+
+            const player = allPlayers.find(p => p.name === playerName);
+
+            // 데이터 누락 방어 3
+            if(!player || !player.gear || player.gear.length === 0) {
+                subEl.innerText = "이 리포트에는 장비 데이터가 기록되어 있지 않습니다.";
+                return;
+            }
+
+            subEl.innerText = `직업: ${job}`;
+            gState = player.gear.map(g => ({ id: String(g.id) }));
+            
+            modeBtn.style.display = "block";
+            modeBtn.innerText = "장비 검색/편집 모드";
+            modeBtn.style.background = "var(--accent)";
+            subEl.style.color = "var(--sub)";
+            
+            drawEditor();
+        } catch(e) {
+            console.error(e);
+            const subEl = document.getElementById(`gear-sub-${cacheKey}`);
+            if(subEl) subEl.innerText = "장비 데이터를 파싱하는 도중 에러가 발생했습니다.";
         }
-
-        const details = tableData.playerDetails;
-        const allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
-        const player = allPlayers.find(p => p.name === playerName);
-
-        if(!player || !player.gear || player.gear.length === 0) {
-            subEl.innerText = "해당 플레이어의 장비 기록이 존재하지 않습니다.";
-            return;
-        }
-
-        subEl.innerText = `직업: ${job}`;
-        gState = player.gear.map(g => ({ id: String(g.id) }));
-        
-        modeBtn.style.display = "block";
-        modeBtn.innerText = "장비 검색/편집 모드";
-        modeBtn.style.background = "var(--accent)";
-        subEl.style.color = "var(--sub)";
-        
-        drawEditor();
     }
 
     function drawEditor() {
@@ -610,7 +631,7 @@
         } else {
             btn.innerText = "장비 검색/편집 모드";
             btn.style.background = "var(--accent)";
-            sub.innerText = "편집을 종료했습니다.";
+            sub.innerText = "편집을 완료했습니다.";
             sub.style.color = "var(--sub)";
         }
         drawEditor();
