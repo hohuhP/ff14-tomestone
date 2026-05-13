@@ -96,7 +96,7 @@
 <script>
     let reports = [], authToken = "";
 
-    // 공식 DB 기반 명칭 맵 업데이트
+    // 1. 요청하신 명칭 완벽 수정 (바하무트 토벌전, 알렉산더 토벌전 등)
     const translateMap = {
         "Enuo": "에누오",
         "Doomtrain": "마열차",
@@ -105,9 +105,9 @@
         "Vamp Fatale": "뱀프 파탈",
         "Red Hot": "레드 핫", 
         "Deep Blue": "딥블루",
-        "The Unending Coil of Bahamut": "절 바하무트 탄생전",
+        "The Unending Coil of Bahamut": "절 바하무트 토벌전",
         "The Weapon's Refrain": "절 알테마 파괴작전",
-        "The Epic of Alexander": "절 알렉산더 공성전",
+        "The Epic of Alexander": "절 알렉산더 토벌전",
         "Dragonsong's Reprise": "절 용시전쟁",
         "The Omega Protocol": "절 오메가 검증전"
     };
@@ -120,14 +120,21 @@
         "BlackMage": "var(--dps)", "Summoner": "var(--dps)", "RedMage": "var(--dps)", "Pictomancer": "var(--dps)"
     };
 
-    // 보스 명칭 통합 및 변환 로직
+    // 2. 번역 로직 버그 수정 (정규식 삭제 및 꼬리표 제거)
     const getT = (s) => {
-        if(s.includes("Oracle") || s.includes("Usurper")) return "또 하나의 미래";
+        if (!s) return "";
+        if (s.includes("Oracle") || s.includes("Usurper")) return "또 하나의 미래";
+        
         let r = s;
-        for(let k in translateMap) {
-            const regex = new RegExp(`\\b${k}\\b`, 'gi'); // 단어 단위로 정확히 매칭
-            r = r.replace(regex, translateMap[k]);
+        // 정규식을 뺐습니다. 순수 텍스트 매칭으로 안전하게 바꿉니다.
+        for (let k in translateMap) {
+            if (r.includes(k)) {
+                r = r.split(k).join(translateMap[k]);
+            }
         }
+        
+        // (Ultimate), (Savage) 등의 영문 꼬리표가 남는 것을 깔끔하게 제거
+        r = r.replace(" (Ultimate)", "").replace(" (Savage)", "").replace(" (Extreme)", "");
         return r;
     };
 
@@ -149,7 +156,6 @@
     async function fetchCharacter() {
         const name = document.getElementById('cnick').value;
         const server = document.getElementById('sv-select').value;
-        // zoneRankings 쿼리 최적화
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
@@ -159,29 +165,34 @@
                 } 
             } 
         }`;
-        const res = await fetch("https://www.fflogs.com/api/v2/client", {
-            method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
-            body: JSON.stringify({ query: q })
-        });
-        const json = await res.json();
-        const char = json.data?.characterData?.character;
-        if(!char) return alert("캐릭터를 찾을 수 없습니다.");
+        
+        try {
+            const res = await fetch("https://www.fflogs.com/api/v2/client", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
+                body: JSON.stringify({ query: q })
+            });
+            const json = await res.json();
+            const char = json.data?.characterData?.character;
+            if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
-        // 올스타 점수 및 순위 반영 (0.0 방지)
-        const zr = char.zoneRankings || {};
-        const score = zr.allstarPoints || zr.rankPoints || 0;
-        const pct = zr.rankPercent || 0;
+            const zr = char.zoneRankings || {};
+            const score = zr.allstarPoints || zr.rankPoints || 0;
+            const pct = zr.rankPercent || 0;
 
-        document.getElementById('top-user-bar').style.display = 'flex';
-        document.getElementById('as-pct').innerText = pct.toFixed(1);
-        document.getElementById('as-pct').style.background = getC(pct);
-        document.getElementById('as-name').innerText = char.name;
-        document.getElementById('as-server').innerText = server;
-        document.getElementById('as-points').innerText = Math.floor(score).toLocaleString();
+            document.getElementById('top-user-bar').style.display = 'flex';
+            document.getElementById('as-pct').innerText = pct.toFixed(1);
+            document.getElementById('as-pct').style.background = getC(pct);
+            document.getElementById('as-name').innerText = char.name;
+            document.getElementById('as-server').innerText = server;
+            document.getElementById('as-points').innerText = Math.floor(score).toLocaleString();
 
-        reports = char.recentReports.data;
-        document.getElementById('tab-nav').style.display = 'flex';
-        renderFights('all', document.querySelector('.tab'));
+            reports = char.recentReports.data;
+            document.getElementById('tab-nav').style.display = 'flex';
+            renderFights('all', document.querySelector('.tab'));
+        } catch(e) {
+            console.error(e);
+            alert("정보를 불러오는 중 오류가 발생했습니다.");
+        }
     }
 
     function renderFights(type, el) {
@@ -191,14 +202,14 @@
         const sorted = [];
         reports.forEach(r => r.fights?.forEach(f => sorted.push({ ...f, code: r.code })));
         
-        // 절(5), 영웅(101/10), 극(4) 순서 정렬
-        const diffOrder = { 5: 1, 101: 2, 10: 2, 4: 3 }; 
-        sorted.sort((a, b) => (diffOrder[a.difficulty] || 99) - (diffOrder[b.difficulty] || 99));
+        // 3. 탭 꼬임 방지: 난이도 ID뿐만 아니라 이름의 영문 접미사까지 이중으로 체크
+        sorted.sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0)); // 임시 정렬
 
         sorted.forEach(f => {
-            const isUlt = f.difficulty === 5;
-            const isSav = f.difficulty === 101 || f.difficulty === 10;
-            const isExt = f.difficulty === 4;
+            const fName = f.name || "";
+            const isUlt = f.difficulty === 5 || f.difficulty === 1005 || fName.includes("Ultimate");
+            const isSav = f.difficulty === 101 || f.difficulty === 10 || fName.includes("Savage");
+            const isExt = f.difficulty === 4 || f.difficulty === 1004 || fName.includes("Extreme");
             const isOther = !isUlt && !isSav && !isExt;
 
             let show = false;
@@ -209,15 +220,17 @@
             else if(type === 'other' && isOther) show = true;
 
             if(show) {
+                const diffText = isUlt ? '절' : isSav ? '영웅' : isExt ? '극' : '기타';
                 html += `<div class="fight-item" onclick="viewParty('${f.code}', ${f.id}, '${getT(f.name)}')">
                     <div style="font-weight: 900; font-size: 17px; color: var(--primary)">${getT(f.name)}</div>
-                    <div style="color: var(--sub); font-size: 12px; margin-top: 6px;">리포트: ${f.code} | ${isUlt?'절':isSav?'영웅':isExt?'극':'기타'}</div>
+                    <div style="color: var(--sub); font-size: 12px; margin-top: 6px;">리포트: ${f.code} | ${diffText}</div>
                 </div>`;
             }
         });
-        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>기록이 없습니다.</div>";
+        document.getElementById('fight-list').innerHTML = html || "<div style='color:var(--sub); padding:20px;'>해당 난이도의 기록이 없습니다.</div>";
     }
 
+    // 4. 클릭 무반응 (데이터 로드 오류) 해결: API 데이터 검증 강화
     async function viewParty(code, fid, title) {
         const container = document.getElementById('party-container');
         const list = document.getElementById('party-list');
@@ -235,13 +248,24 @@
                 body: JSON.stringify({ query: q })
             });
             const json = await res.json();
-            const report = json.data.reportData.report;
-            const details = report.table.data.playerDetails;
-            const rankings = report.rankings.data[0]?.rankings || [];
+            
+            const report = json.data?.reportData?.report;
+            if (!report) throw new Error("리포트를 찾을 수 없습니다.");
+
+            const tableData = report.table?.data || report.table;
+            if (!tableData || !tableData.playerDetails) throw new Error("파티원 상세 데이터가 없습니다.");
+
+            const details = tableData.playerDetails;
+            const rankings = report.rankings?.data?.[0]?.rankings || [];
 
             let h = "";
             const allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
             
+            if(allPlayers.length === 0) {
+                list.innerHTML = "<span style='color:#ff4d4d'>해당 전투의 파티원 기록이 존재하지 않습니다.</span>";
+                return;
+            }
+
             allPlayers.forEach(p => {
                 const color = jobColors[p.type] || "#ccc";
                 const rankObj = rankings.find(r => r.name === p.name) || { percentile: 0 };
@@ -253,8 +277,13 @@
             });
             list.innerHTML = h;
             document.getElementById('party-title').innerText = `[${title}] 참여 파티원`;
+            
+            // 화면 자동 스크롤
             window.scrollTo({ top: container.offsetTop - 50, behavior: 'smooth' });
-        } catch(e) { list.innerHTML = "<span style='color:#ff4d4d'>상세 데이터를 불러올 수 없습니다.</span>"; }
+        } catch(e) { 
+            console.error(e);
+            list.innerHTML = `<span style='color:#ff4d4d'>데이터 로드 오류: 비공개 로그이거나 API 처리 지연 중일 수 있습니다.</span>`; 
+        }
     }
 </script>
 </body>
