@@ -128,7 +128,7 @@
 
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
 <div id="m-ui" class="modal-body">
-    <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색</h3>
+    <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색 <small style="color:var(--sub); font-size:12px;">(ESC로 닫기)</small></h3>
     <input type="text" id="m-search" placeholder="아이템 이름 (2글자 이상 입력)" oninput="doSearch(this.value)" style="width: 100%; box-sizing: border-box; padding: 14px; border-radius: 10px; border: 1px solid var(--primary); background: #000; color: #fff;">
     <div id="m-results" style="max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
@@ -140,6 +140,17 @@
     let curActiveGearId = ""; 
     let curIdx = { s: null };
     let dataCache = {}; 
+
+    // ESC 키로 창 닫기 기능
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            if (document.getElementById('m-bg').style.display === 'block') {
+                closeM();
+            } else {
+                document.querySelectorAll('.inline-party-container').forEach(e => e.remove());
+            }
+        }
+    });
 
     const translateMap = {
         "Fatebreaker": "페이트 브레이커",
@@ -218,7 +229,6 @@
         const btn = document.getElementById('search-btn');
         btn.innerText = "로딩 중...";
 
-        // 진행 시간을 구하기 위해 startTime과 endTime 쿼리 추가
         const q = `query { 
             characterData { 
                 character(name: "${name}", serverSlug: "${server}", serverRegion: "KR") { 
@@ -227,7 +237,7 @@
                     recentReports(limit: 25) { 
                         data { 
                             code title 
-                            fights { id name difficulty kill fightPercentage bossPercentage friendlyPlayers startTime endTime } 
+                            fights { id name difficulty kill fightPercentage bossPercentage friendlyPlayers startTime endTime lastPhase } 
                             masterData { actors(type: "Player") { id name subType } }
                         } 
                     } 
@@ -252,34 +262,48 @@
             if(!char) return alert("캐릭터를 찾을 수 없습니다.");
 
             const zr = char.zoneRankings || {};
-            let rankText = "-";
-            let pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || zr.rankPercent || 0;
             
-            let bestServerRank = zr.allStarServerRank || zr.serverRank || Infinity;
-            let bestGlobalRank = zr.allStarRank || zr.rank || Infinity;
-
-            if (zr.rankings && Array.isArray(zr.rankings)) {
+            // 💡 1. 평균 퍼포먼스 (배지 점수) 최우선 할당
+            let pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || 0;
+            
+            // 만약 평균 퍼포먼스가 아예 없다면(0이라면) 개별 보스 중에서 가져옴
+            if (pct === 0 && zr.rankings && Array.isArray(zr.rankings)) {
+                let maxBossPct = 0;
                 zr.rankings.forEach(r => {
-                    if (r.rankPercent && r.rankPercent > pct) pct = r.rankPercent;
-                    if (r.serverRank && r.serverRank < bestServerRank) bestServerRank = r.serverRank;
-                    if (r.globalRank && r.globalRank < bestGlobalRank) bestGlobalRank = r.globalRank;
+                    if (r.rankPercent && r.rankPercent > maxBossPct) maxBossPct = r.rankPercent;
                 });
+                pct = maxBossPct;
             }
 
+            // 💡 2. 한국 순위 최우선 탐색
+            let bestServerRank = Infinity;
+            let bestKoreaRank = Infinity;
+
+            const extractRanks = (obj) => {
+                if (obj.serverRank && obj.serverRank > 0 && obj.serverRank < bestServerRank) bestServerRank = obj.serverRank;
+                if (obj.allStarServerRank && obj.allStarServerRank > 0 && obj.allStarServerRank < bestServerRank) bestServerRank = obj.allStarServerRank;
+                
+                // 한국(KR) 지역에서는 rank/regionRank가 한국 순위를 의미함
+                const krRank = obj.regionRank || obj.allStarRegionRank || obj.rank || obj.allStarRank;
+                if (krRank && krRank > 0 && krRank < bestKoreaRank) bestKoreaRank = krRank;
+            };
+
+            extractRanks(zr); 
+
+            // 세부 보스 랭크 확인
+            if (zr.rankings && Array.isArray(zr.rankings)) {
+                zr.rankings.forEach(r => extractRanks(r));
+            }
             if (Array.isArray(zr)) {
-                zr.forEach(z => {
-                    if (z.rankPercent && z.rankPercent > pct) pct = z.rankPercent;
-                    if (z.allStarServerRank && z.allStarServerRank < bestServerRank) bestServerRank = z.allStarServerRank;
-                    if (z.serverRank && z.serverRank < bestServerRank) bestServerRank = z.serverRank;
-                });
+                zr.forEach(z => extractRanks(z));
             }
 
-            if (bestServerRank !== Infinity) {
+            // 순위 텍스트 결정 (한국 텍스트 생략하고 숫자만 직관적으로)
+            let rankText = "순위 미집계";
+            if (bestKoreaRank !== Infinity) {
+                rankText = `${bestKoreaRank.toLocaleString()}위`;
+            } else if (bestServerRank !== Infinity) {
                 rankText = `서버 ${bestServerRank.toLocaleString()}위`;
-            } else if (bestGlobalRank !== Infinity) {
-                rankText = `글로벌 ${bestGlobalRank.toLocaleString()}위`;
-            } else {
-                rankText = "순위 집계 중";
             }
 
             document.getElementById('top-user-bar').style.display = 'flex';
@@ -290,10 +314,10 @@
             document.getElementById('as-name').innerText = char.name;
             document.getElementById('as-server').innerText = server;
             
-            const pointsLabel = document.getElementById('as-points-label');
-            if(pointsLabel) pointsLabel.innerText = "BEST RANK (최고 순위)";
+            document.getElementById('as-points-label').innerText = "BEST RANK (최고 순위)";
             document.getElementById('as-points').innerText = rankText;
 
+            // 본인 참여 로그 필터링
             reports = [];
             const searchName = char.name;
             char.recentReports.data.forEach(r => {
@@ -332,15 +356,14 @@
         if(el) el.style.display = (el.style.display === 'none') ? 'flex' : 'none';
     }
 
-    // 트라이 진행 시간 계산 함수
     function getDurationText(f) {
+        let textArr = [];
+        if (f.lastPhase && f.lastPhase > 0) textArr.push(`P${f.lastPhase}`);
         if (f.startTime && f.endTime) {
             const sec = Math.floor((f.endTime - f.startTime) / 1000);
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            return ` (${m}분 ${s}초)`;
+            textArr.push(`${Math.floor(sec / 60)}분 ${sec % 60}초`);
         }
-        return "";
+        return textArr.length > 0 ? ` (${textArr.join(" / ")})` : "";
     }
 
     function renderFights(type, el) {
@@ -437,12 +460,11 @@
     async function viewParty(code, fid, title, el, event) {
         if(event) event.stopPropagation();
 
-        // 💡 중요: 하이픈(-) 포맷으로 완벽히 통일
         const cacheKey = `${code}-${fid}`; 
         const containerId = `inline-${cacheKey}`;
         
+        // 다시 클릭 시 전투 로그와 장비창 모두 닫힘
         if(document.getElementById(containerId)) {
-            // 열려있는 로그를 다시 클릭하면 컨테이너가 삭제되며 파티창/장비창이 동시에 완전히 닫힙니다.
             document.getElementById(containerId).remove();
             return;
         }
@@ -455,7 +477,7 @@
         
         container.innerHTML = `
             <div class="party-side">
-                <h3 style="margin-top:0; color:var(--primary)">[${title}] 전투 참여자</h3>
+                <h3 style="margin-top:0; color:var(--primary)">[${title}] 전투 참여자 <small style="color:var(--sub); font-size:12px;">(ESC로 닫기)</small></h3>
                 <div id="list-${cacheKey}" class="party-grid"><span style="color:var(--sub)">데이터 로딩 중...</span></div>
             </div>
             <div class="gear-side">
@@ -553,7 +575,6 @@
             const gridEl = document.getElementById(`gear-grid-${curActiveGearId}`);
             const modeBtn = document.getElementById(`mode-btn-${curActiveGearId}`);
             
-            // 데이터 처리 중임을 표시
             titleEl.innerHTML = `${playerName} 장비`;
             subEl.innerText = "데이터를 처리하는 중...";
             gridEl.innerHTML = "";
@@ -562,33 +583,32 @@
             const reportData = dataCache[cacheKey];
             const tableData = reportData?.table?.data || reportData?.table;
             
-            if(!tableData || !tableData.playerDetails) {
-                subEl.innerText = "이 리포트는 상세 장비 데이터를 제공하지 않습니다. (오래된 로그거나 짧은 트라이)";
-                return;
-            }
-
-            const details = tableData.playerDetails;
             let allPlayers = [];
-            if (Array.isArray(details)) {
-                allPlayers = details; 
-            } else if (typeof details === 'object') {
-                allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
+            if (tableData && tableData.playerDetails) {
+                const details = tableData.playerDetails;
+                if (Array.isArray(details)) {
+                    allPlayers = details; 
+                } else if (typeof details === 'object') {
+                    allPlayers = [...(details.tanks || []), ...(details.healers || []), ...(details.dps || [])];
+                }
             }
 
             const player = allPlayers.find(p => p.name === playerName);
 
+            // 💡 장비 기록이 아예 없을 때 -> 12칸 빈 슬롯으로 초기화하여 직접 채울 수 있게 제공
             if(!player || !player.gear || player.gear.length === 0) {
-                subEl.innerText = "해당 플레이어의 장비 기록이 존재하지 않습니다.";
-                return;
+                subEl.innerText = "FFlogs에 장비 기록이 존재하지 않아 빈 슬롯으로 초기화되었습니다. 직접 편집할 수 있습니다.";
+                subEl.style.color = "var(--orange)";
+                gState = Array(12).fill({ id: "0" }); 
+            } else {
+                subEl.innerText = `직업: ${job}`;
+                subEl.style.color = "var(--sub)";
+                gState = player.gear.map(g => ({ id: String(g.id) }));
             }
-
-            subEl.innerText = `직업: ${job}`;
-            gState = player.gear.map(g => ({ id: String(g.id) }));
             
             modeBtn.style.display = "block";
             modeBtn.innerText = "장비 검색/편집 모드";
             modeBtn.style.background = "var(--accent)";
-            subEl.style.color = "var(--sub)";
             
             drawEditor();
         } catch(e) {
@@ -608,19 +628,21 @@
         let count = 0;
         
         gridEl.innerHTML = gState.map((g, i) => {
-            const it = itemDB.find(x => x.id === g.id) || { name: "알 수 없는 장비", icon: "000001", ilvl: 0 };
+            const it = itemDB.find(x => x.id === g.id) || { name: "빈 슬롯 (클릭하여 설정)", icon: "000000", ilvl: 0 };
             if(it.ilvl > 0) { totalIlvl += it.ilvl; count++; }
             
             const clickEvt = editMode ? `openSearch(${i})` : '';
             const editClass = editMode ? 'editable' : '';
+            
+            const imgHtml = `<img class="item-thumb" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">`;
 
             return `<div class="gear-card ${editClass}" onclick="${clickEvt}">
-                <img class="item-thumb" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png">
+                ${imgHtml}
                 <div style="flex:1">
                     <small style="color:var(--sub); font-weight:bold;">${labels[i] || '기타'}</small>
                     <div style="font-weight:bold; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${it.name}</div>
                 </div>
-                <div style="color:var(--primary); font-weight:900;">i${it.ilvl}</div>
+                <div style="color:var(--primary); font-weight:900;">${it.ilvl > 0 ? 'i'+it.ilvl : '-'}</div>
             </div>`;
         }).join('');
         
