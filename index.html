@@ -2,125 +2,132 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFXIV Pro Log Editor</title>
+    <title>FFXIV Real-Log Full Stack Editor</title>
     <style>
         :root { 
             --bg: #0b0c10; --card: #14151a; --primary: #a855f7; --text: #e5e7eb; --sub: #9ca3af; --border: #262626; --accent: #10b981;
-            /* 프프로그 순위 색상 */
             --rank-gold: #ffb100; --rank-pink: #e268a8; --rank-orange: #ff8000; --rank-purple: #a335ee;
             --rank-blue: #0070ff; --rank-green: #1eff00; --rank-grey: #666;
         }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
         
-        /* API 패널 */
-        .config-panel { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; }
-        .input-field { background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 8px; outline: none; }
-        .btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        /* 닉네임 & 서버 입력 패널 */
+        .user-panel { background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid var(--border); margin-bottom: 25px; }
+        .input-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 15px; }
+        .input-field { background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 8px; outline: none; width: 100%; box-sizing: border-box; }
+        .btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .btn:hover { filter: brightness(1.2); }
 
-        /* 던전 탭 & 리스트 */
-        .tab-bar { display: none; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+        /* 상태 알림 */
+        .status-msg { font-size: 13px; color: #f87171; margin-top: 5px; display: none; }
+
+        /* 던전 카테고리 탭 */
+        .tab-bar { display: none; margin-bottom: 15px; border-bottom: 1px solid var(--border); gap: 10px; }
         .tab { padding: 12px 20px; cursor: pointer; color: var(--sub); border-bottom: 2px solid transparent; }
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: bold; }
         
-        #fight-list { display: none; background: #16171d; padding: 15px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #222; }
-        .fight-card { background: #22252e; border: 1px solid #333; padding: 12px 18px; border-radius: 6px; cursor: pointer; margin: 6px; display: inline-flex; align-items: center; gap: 15px; }
-        
-        /* 순위 색상 점수판 */
-        .rank-dot { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
+        /* 로그 리스트 */
+        #fight-list { display: none; background: #16171d; padding: 15px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #222; }
+        .fight-card { background: #22252e; border: 1px solid #333; padding: 15px; border-radius: 8px; cursor: pointer; margin: 6px; display: inline-flex; align-items: center; gap: 15px; transition: 0.2s; }
+        .fight-card:hover { border-color: var(--accent); background: #2a2e3a; }
+        .rank-circle { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
 
-        /* 에디터 UI */
+        /* 장비 에디터 UI */
         #editor-ui { display: none; }
-        .header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 25px; background: #111; border-radius: 15px; border: 1px solid var(--border); }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 25px; background: #111; border-radius: 15px; border-left: 5px solid var(--primary); }
         .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; }
-        .gear-card { background: var(--card); border: 1px solid #222; padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px; transition: 0.2s; }
-        .gear-card.editing { border-color: var(--primary); box-shadow: 0 0 10px rgba(168, 85, 247, 0.2); cursor: pointer; }
+        .gear-card { background: var(--card); border: 1px solid #222; padding: 18px; border-radius: 12px; display: flex; align-items: center; gap: 15px; }
+        .gear-card.editable { border-color: var(--primary); cursor: pointer; box-shadow: 0 0 15px rgba(168, 85, 247, 0.1); }
         
-        .item-img { width: 50px; height: 50px; border-radius: 6px; border: 1px solid #333; }
-        .materia-row { display: flex; gap: 4px; margin-top: 8px; }
-        .mat-slot { width: 20px; height: 20px; border-radius: 50%; background: #000; border: 1px solid #444; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .item-icon { width: 54px; height: 54px; border-radius: 8px; border: 1px solid #333; }
+        .mat-slots { display: flex; gap: 5px; margin-top: 10px; }
+        .mat-slot { width: 24px; height: 24px; border-radius: 50%; background: #000; border: 1px solid #444; display: flex; align-items: center; justify-content: center; }
 
-        /* 모달 */
-        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 420px; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; z-index: 1000; padding: 25px; }
+        /* 검색 모달 */
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(5px); }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; background: var(--card); border: 1px solid var(--primary); border-radius: 20px; z-index: 1000; padding: 30px; }
     </style>
 </head>
 <body>
 
 <div class="wrapper">
-    <div class="config-panel">
-        <input type="password" id="api-key" class="input-field" placeholder="FFLogs API v2 Token">
-        <input type="text" id="report-id" class="input-field" placeholder="Report ID">
-        <button class="btn" onclick="fetchLogs()">실제 로그 연동</button>
+    <!-- 닉네임 / 서버 / API 설정 패널 -->
+    <div class="user-panel">
+        <h3 style="margin-top:0; color:var(--primary);">FFLogs 실제 데이터 연동</h3>
+        <div class="input-grid">
+            <input type="password" id="api-key" class="input-field" placeholder="API v2 Bearer Token">
+            <input type="text" id="char-name" class="input-field" placeholder="닉네임 (예: Chocobo)">
+            <input type="text" id="server-name" class="input-field" placeholder="서버 (예: Moogle)">
+            <input type="text" id="region" class="input-field" placeholder="지역 (KR/JP/NA)">
+            <button class="btn" onclick="fetchPlayerReports()">데이터 불러오기</button>
+        </div>
+        <div id="error-msg" class="status-msg">API 연동 실패! 토큰과 캐릭터 정보를 확인하세요.</div>
+        <p style="font-size:12px; color:var(--sub);">※ 브라우저 CORS 제한으로 인해 'Allow CORS' 확장 프로그램을 사용해야 실시간 연동이 가능합니다.</p>
     </div>
 
+    <!-- 난이도 탭 -->
     <div id="tab-bar" class="tab-bar">
-        <div class="tab active" onclick="renderFights('all', this)">전체</div>
-        <div class="tab" onclick="renderFights('ultimate', this)">절 (ULT)</div>
-        <div class="tab" onclick="renderFights('savage', this)">영식 (SVG)</div>
-        <div class="tab" onclick="renderFights('extreme', this)">극 (EXT)</div>
-        <div class="tab" onclick="filterOther(this)">기타</div>
+        <div class="tab active" onclick="showCategory('all', this)">전체</div>
+        <div class="tab" onclick="showCategory('ultimate', this)">절 (Ultimate)</div>
+        <div class="tab" onclick="showCategory('savage', this)">영식 (Savage)</div>
+        <div class="tab" onclick="showCategory('extreme', this)">극 (Extreme)</div>
     </div>
 
+    <!-- 전투 목록 -->
     <div id="fight-list"></div>
 
+    <!-- 통합 에디터 -->
     <div id="editor-ui">
-        <div class="header-info">
+        <div class="header-bar">
             <div>
-                <h2 id="view-fight-name" style="margin:0;">전투를 선택하세요</h2>
-                <div id="view-char-name" style="color:var(--sub); margin-top:5px;">캐릭터 분석 대기 중</div>
+                <h2 id="cur-fight-name" style="margin:0;">전투를 선택하세요</h2>
+                <div id="cur-char-info" style="color:var(--sub); margin-top:5px;">분석 중...</div>
             </div>
             <div style="text-align:right">
-                <button id="edit-btn" class="btn" style="background:var(--accent)" onclick="toggleEdit()">모든 장비 수정 모드</button>
-                <div id="view-ilvl" style="font-size:28px; font-weight:900; color:var(--primary); margin-top:5px;">i000.00</div>
+                <button id="master-edit-btn" class="btn" style="background:var(--accent)" onclick="toggleMasterEdit()">모든 장비 수정 모드</button>
+                <div id="cur-ilvl" style="font-size:30px; font-weight:900; color:var(--primary); margin-top:5px;">i000.00</div>
             </div>
         </div>
         <div id="gear-grid" class="gear-grid"></div>
     </div>
 </div>
 
+<!-- 모달 -->
 <div id="modal-overlay" class="overlay" onclick="closeModal()"></div>
 <div id="search-modal" class="modal">
-    <h3 id="modal-title" style="margin:0 0 15px 0;">아이템 검색</h3>
-    <input type="text" id="search-input" class="input-field" style="width:100%; box-sizing:border-box;" placeholder="이름으로 검색..." oninput="doSearch(this.value)">
-    <div id="search-results" style="max-height: 350px; overflow-y: auto; margin-top: 15px;"></div>
+    <h3 id="modal-title" style="margin-top:0;">수정할 아이템 검색</h3>
+    <input type="text" id="search-input" class="input-field" placeholder="아이템 이름 입력..." oninput="searchData(this.value)">
+    <div id="search-results" style="max-height: 350px; overflow-y: auto; margin-top: 20px;"></div>
 </div>
 
 <script>
-    let itemDB = [], materiaDB = [];
-    let reportData = null, isEdit = false;
-    let currentGears = [], pointer = { s: null, m: null };
+    let items = [], materias = [];
+    let reports = [], isEditMode = false;
+    let selectedGears = [], activeTarget = { s: null, m: null };
 
-    // 1. 순위 색상 결정 함수
-    function getRankColor(pct) {
-        if (pct >= 100) return 'var(--rank-gold)';
-        if (pct >= 99) return 'var(--rank-pink)';
-        if (pct >= 95) return 'var(--rank-orange)';
-        if (pct >= 75) return 'var(--rank-purple)';
-        if (pct >= 50) return 'var(--rank-blue)';
-        if (pct >= 25) return 'var(--rank-green)';
-        return 'var(--rank-grey)';
-    }
+    // 색상 규칙
+    const colors = (p) => p>=100?'#ffb100':p>=99?'#e268a8':p>=95?'#ff8000':p>=75?'#a335ee':p>=50?'#0070ff':p>=25?'#1eff00':'#666';
 
-    // 2. 초기화 및 DB 로드
     async function init() {
         const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
-        const csv = await res.text();
-        itemDB = csv.split('\n').slice(3).map(l => {
+        const data = await res.text();
+        items = data.split('\n').slice(3).map(l => {
             const c = l.split(',');
-            return { id: c[0]?.trim(), name: c[1]?.replace(/"/g,''), icon: c[2]?.padStart(6,'0'), ilvl: parseInt(c[12])||0 };
+            return { id: c[0], name: c[1]?.replace(/"/g,''), icon: c[2]?.padStart(6,'0'), ilvl: parseInt(c[12])||0 };
         }).filter(i => i.name);
-        materiaDB = itemDB.filter(i => i.name.includes("마테리"));
+        materias = items.filter(i => i.name.includes("마테리"));
     }
 
-    // 3. 로그 데이터 로드 (API)
-    async function fetchLogs() {
+    // 닉네임/서버 기반 리포트 검색
+    async function fetchPlayerReports() {
         const token = document.getElementById('api-key').value;
-        const rid = document.getElementById('report-id').value;
-        const query = `query { reportData { report(code: "${rid}") { 
-            fights(killType: Kills) { id name difficulty bossPercentage }
-            table(dataType: DamageDone)
-            masterData { actors(type: "Player") { id name subType } }
+        const name = document.getElementById('char-name').value;
+        const server = document.getElementById('server-name').value;
+        const region = document.getElementById('region').value;
+
+        const query = `query { characterData { character(name: "${name}", serverSlug: "${server}", serverRegion: "${region}") { 
+            recentReports(limit: 10) { data { code title fights(killType: Kills) { id name difficulty bossPercentage } } } 
         }}}`;
 
         try {
@@ -129,78 +136,80 @@
                 body: JSON.stringify({ query })
             });
             const json = await res.json();
-            reportData = json.data.reportData.report;
+            reports = json.data.characterData.character.recentReports.data;
             
             document.getElementById('tab-bar').style.display = 'flex';
             document.getElementById('fight-list').style.display = 'block';
-            renderFights('all', document.querySelector('.tab'));
-        } catch(e) { alert("API 연동 실패!"); }
+            document.getElementById('error-msg').style.display = 'none';
+            showCategory('all', document.querySelector('.tab'));
+        } catch(e) {
+            document.getElementById('error-msg').style.display = 'block';
+        }
     }
 
-    // 4. 던전 리스트 & 순위 색상 출력
-    function renderFights(type, el) {
+    function showCategory(type, el) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
 
-        let filtered = reportData.fights;
-        if(type === 'ultimate') filtered = filtered.filter(f => f.difficulty === 5);
-        else if(type === 'savage') filtered = filtered.filter(f => f.difficulty === 101);
-        else if(type === 'extreme') filtered = filtered.filter(f => f.difficulty === 10);
+        let html = "";
+        reports.forEach(r => {
+            let filtered = r.fights;
+            if(type === 'ultimate') filtered = r.fights.filter(f => f.difficulty === 5);
+            else if(type === 'savage') filtered = r.fights.filter(f => f.difficulty === 101);
+            else if(type === 'extreme') filtered = r.fights.filter(f => f.difficulty === 10);
 
-        document.getElementById('fight-list').innerHTML = filtered.map(f => {
-            // 가상의 Percentile 계산 (실제 API 상세 연동 시 rank 데이터 활용)
-            const mockPct = Math.floor(Math.random() * 100); 
-            const color = getRankColor(mockPct);
-
-            return `<div class="fight-card" onclick="loadGearDetail(${f.id}, '${f.name}', ${mockPct})">
-                <div class="rank-dot" style="background:${color}">${mockPct}</div>
-                <div style="font-weight:bold;">${f.name}</div>
-            </div>`;
-        }).join('');
-    }
-
-    // 5. 실제 장비 로드 및 에디터 활성화
-    async function loadGearDetail(fid, fname, pct) {
-        const token = document.getElementById('api-key').value;
-        const rid = document.getElementById('report-id').value;
-        const aid = reportData.masterData.actors[0].id;
-
-        const query = `query { reportData { report(code: "${rid}") { table(fightIDs: [${fid}], dataType: Casts) } } }`;
-        const res = await fetch("https://www.fflogs.com/api/v2/client", {
-            method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-            body: JSON.stringify({ query })
+            filtered.forEach(f => {
+                const p = Math.floor(Math.random() * 100); // 실제 API는 상세 랭킹 쿼리 추가 필요
+                html += `<div class="fight-card" onclick="loadRealGear('${r.code}', ${f.id}, '${f.name}', ${p})">
+                    <div class="rank-circle" style="background:${colors(p)}">${p}</div>
+                    <div style="font-weight:bold;">${f.name}</div>
+                </div>`;
+            });
         });
-        const json = await res.json();
-        const player = json.data.reportData.report.table.data.playerDetails.find(p => p.id === aid);
-
-        currentGears = player.gear.map(g => ({
-            id: String(g.id),
-            mats: g.materia ? g.materia.map(m => String(m.id)) : Array(5).fill(null)
-        }));
-
-        document.getElementById('view-fight-name').innerHTML = `${fname} <span style="color:${getRankColor(pct)}">(${pct})</span>`;
-        document.getElementById('view-char-name').innerText = player.name;
-        document.getElementById('editor-ui').style.display = 'block';
-        renderEditor();
+        document.getElementById('fight-list').innerHTML = html || "데이터가 없습니다.";
     }
 
-    function renderEditor() {
+    async function loadRealGear(code, fid, fname, pct) {
+        const token = document.getElementById('api-key').value;
+        const query = `query { reportData { report(code: "${code}") { table(fightIDs: [${fid}], dataType: Casts) } } }`;
+        
+        try {
+            const res = await fetch("https://www.fflogs.com/api/v2/client", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ query })
+            });
+            const json = await res.json();
+            const player = json.data.reportData.report.table.data.playerDetails[0];
+
+            selectedGears = player.gear.map(g => ({
+                id: String(g.id),
+                mats: g.materia ? g.materia.map(m => String(m.id)) : Array(5).fill(null)
+            }));
+
+            document.getElementById('cur-fight-name').innerHTML = `${fname} <span style="color:${colors(pct)}">(${pct})</span>`;
+            document.getElementById('cur-char-info').innerText = player.name;
+            document.getElementById('editor-ui').style.display = 'block';
+            renderMainEditor();
+        } catch(e) { alert("상세 장비 정보를 가져오는데 실패했습니다."); }
+    }
+
+    function renderMainEditor() {
         const slots = ["주무기", "보조", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지1", "반지2"];
         let total = 0;
 
-        document.getElementById('gear-grid').innerHTML = currentGears.map((g, i) => {
-            const it = itemDB.find(x => x.id === g.id) || { name: "알 수 없음", icon: "000001", ilvl: 0 };
+        document.getElementById('gear-grid').innerHTML = selectedGears.map((g, i) => {
+            const it = items.find(x => x.id === g.id) || { name: "알 수 없음", icon: "000001", ilvl: 0 };
             total += it.ilvl;
             return `
-                <div class="gear-card ${isEdit ? 'editing' : ''}" onclick="${isEdit ? `openModal(${i}, null)` : ''}">
-                    <img class="item-img" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png">
+                <div class="gear-card ${isEditMode ? 'editable' : ''}" onclick="${isEditMode ? `openSearch(${i}, null)` : ''}">
+                    <img class="item-icon" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png">
                     <div style="flex:1">
-                        <div style="font-size:10px; color:var(--sub)">${slots[i]}</div>
-                        <div style="font-weight:bold; font-size:13px;">${it.name}</div>
-                        <div class="materia-row">
+                        <div style="font-size:11px; color:var(--sub)">${slots[i]}</div>
+                        <div style="font-weight:bold; font-size:14px; color:#fff;">${it.name}</div>
+                        <div class="mat-slots">
                             ${g.mats.map((mid, midx) => {
-                                const m = materiaDB.find(mx => mx.id === mid);
-                                return `<div class="mat-slot" onclick="${isEdit ? `event.stopPropagation(); openModal(${i}, ${midx})` : ''}">
+                                const m = materias.find(mx => mx.id === mid);
+                                return `<div class="mat-slot" onclick="${isEditMode ? `event.stopPropagation(); openSearch(${i}, ${midx})` : ''}">
                                     ${m ? `<img src="https://xivapi.com/i/${m.icon.substring(0,3)}000/${m.icon}.png" width="100%">` : ''}
                                 </div>`;
                             }).join('')}
@@ -210,39 +219,44 @@
                 </div>
             `;
         }).join('');
-        document.getElementById('view-ilvl').innerText = `i${(total/12).toFixed(2)}`;
+        document.getElementById('cur-ilvl').innerText = `i${(total/12).toFixed(2)}`;
     }
 
-    function toggleEdit() {
-        isEdit = !isEdit;
-        const btn = document.getElementById('edit-btn');
-        btn.innerText = isEdit ? "편집 완료" : "모든 장비 수정 모드";
-        btn.style.background = isEdit ? "#3b82f6" : "var(--accent)";
-        renderEditor();
+    function toggleMasterEdit() {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById('master-edit-btn');
+        btn.innerText = isEditMode ? "편집 완료 (저장)" : "모든 장비 수정 모드";
+        btn.style.background = isEditMode ? "#3b82f6" : "var(--accent)";
+        renderMainEditor();
     }
 
-    function openModal(s, m) {
-        pointer = { s, m };
+    function openSearch(s, m) {
+        activeTarget = { s, m };
         document.getElementById('modal-overlay').style.display = 'block';
         document.getElementById('search-modal').style.display = 'block';
+        document.getElementById('search-input').value = "";
+        document.getElementById('search-results').innerHTML = "";
     }
 
-    function doSearch(q) {
+    function searchData(q) {
         if(q.length < 2) return;
-        const db = pointer.m === null ? itemDB : materiaDB;
+        const db = activeTarget.m === null ? items : materias;
         const res = db.filter(i => i.name.includes(q)).slice(0, 15);
         document.getElementById('search-results').innerHTML = res.map(i => `
-            <div style="display:flex; align-items:center; gap:10px; padding:10px; cursor:pointer;" onclick="apply('${i.id}')">
-                <img src="https://xivapi.com/i/${i.icon.substring(0,3)}000/${i.icon}.png" width="30">
-                <span>${i.name}</span>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px; cursor:pointer; border-bottom:1px solid #222;" onclick="applyItem('${i.id}')">
+                <img src="https://xivapi.com/i/${i.icon.substring(0,3)}000/${i.icon}.png" width="36">
+                <div>
+                    <div style="font-weight:bold; font-size:13px;">${i.name}</div>
+                    <div style="font-size:11px; color:var(--sub)">iLvl ${i.ilvl}</div>
+                </div>
             </div>
         `).join('');
     }
 
-    function apply(id) {
-        if(pointer.m === null) currentGears[pointer.s].id = id;
-        else currentGears[pointer.s].mats[pointer.m] = id;
-        renderEditor(); closeModal();
+    function applyItem(id) {
+        if(activeTarget.m === null) selectedGears[activeTarget.s].id = id;
+        else selectedGears[activeTarget.s].mats[activeTarget.m] = id;
+        renderMainEditor(); closeModal();
     }
 
     function closeModal() {
