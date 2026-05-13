@@ -14,12 +14,11 @@
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
 
-        /* 상단 유저 바 (항상 표시됨) */
         .allstar-header { 
-            position: sticky; top: 0; z-index: 100;
+            display: none; position: sticky; top: 0; z-index: 100;
             background: rgba(22, 22, 26, 0.95); backdrop-filter: blur(15px);
             padding: 20px 30px; border-radius: 20px; border-bottom: 2px solid var(--primary);
-            margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 25px; align-items: center; justify-content: space-between;
             box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }
         .allstar-badge { font-size: 36px; font-weight: 900; padding: 8px 20px; border-radius: 15px; color: #fff; margin-right: 15px; min-width: 80px; text-align: center; transition: 0.3s; }
@@ -74,7 +73,8 @@
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(5px); }
         .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
         
-        .m-result-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #333; font-size: 14px; }
+        /* 검색 모달 아이템 리스트 (아이콘 포함 디자인으로 변경) */
+        .m-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #333; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
         .m-result-item:hover { background: #2d2d33; color: var(--primary); }
 
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -83,7 +83,6 @@
 <body>
 
 <div class="wrapper">
-    <!-- 상단 헤더 -->
     <div id="top-user-bar" class="allstar-header">
         <div style="display: flex; align-items: center;">
             <div id="as-pct" class="allstar-badge" style="background: var(--panel); color: var(--sub);">-</div>
@@ -93,12 +92,10 @@
             </div>
         </div>
         <div style="text-align: right">
-            <!-- 설정창 오픈 버튼 -->
             <button class="btn" style="background: #2d2d33; color: #fff; padding: 12px 24px; font-size: 15px;" onclick="openConfig()">⚙️ 설정</button>
         </div>
     </div>
 
-    <!-- 검색창 -->
     <input type="text" id="filter-input" class="search-bar" style="display: none;" placeholder="🔍 보스 이름, 파티원 닉네임, 탭 검색 (예: 절, 영웅, 에누오)..." onkeyup="filterLogs()">
 
     <div id="tab-nav" class="tab-menu">
@@ -112,7 +109,6 @@
     <div id="fight-list"></div>
 </div>
 
-<!-- 설정 모달창 -->
 <div id="config-bg" class="modal-bg" style="display:block;" onclick="closeConfig()"></div>
 <div id="config-ui" class="modal-body" style="display:block; width: 500px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -146,12 +142,11 @@
     </div>
 </div>
 
-<!-- 장비 DB 검색 모달창 -->
 <div id="m-bg" class="modal-bg" onclick="closeM()"></div>
-<div id="m-ui" class="modal-body" style="width: 450px;">
+<div id="m-ui" class="modal-body" style="width: 500px;">
     <h3 style="margin-top:0; color: var(--primary);">아이템 DB 검색 <small style="color:var(--sub); font-size:12px;">(ESC로 닫기)</small></h3>
     <input type="text" id="m-search" placeholder="아이템 이름 (2글자 이상 입력)" oninput="doSearch(this.value)" style="width: 100%; box-sizing: border-box; padding: 14px; border-radius: 10px; border: 1px solid var(--primary); background: #000; color: #fff;">
-    <div id="m-results" style="max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
+    <div id="m-results" style="max-height: 350px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
 
 <script>
@@ -160,17 +155,18 @@
     let gState = [], editMode = false;
     let curActiveGearId = ""; 
     let curIdx = { s: null };
+    
+    let editedGearCache = {}; 
     let dataCache = {}; 
 
-    // ESC 키로 열려있는 모든 창 닫기 제어
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
             if (document.getElementById('m-bg').style.display === 'block') {
-                closeM(); // 아이템 검색 모달 닫기
+                closeM(); 
             } else if (document.getElementById('config-bg').style.display === 'block') {
-                closeConfig(); // 설정 모달 닫기
+                closeConfig(); 
             } else {
-                document.querySelectorAll('.inline-party-container').forEach(e => e.remove()); // 전투/장비 로그 닫기
+                document.querySelectorAll('.inline-party-container').forEach(e => e.remove()); 
             }
         }
     });
@@ -303,7 +299,6 @@
 
             const zr = char.zoneRankings || {};
             
-            // 배지 점수 (평균 퍼포먼스)
             let pct = zr.bestPerformanceAverage || zr.bestAllStarPercent || 0;
             if (pct === 0 && zr.rankings && Array.isArray(zr.rankings)) {
                 let maxBossPct = 0;
@@ -313,7 +308,18 @@
                 pct = maxBossPct;
             }
 
-            // 상단 헤더 UI 업데이트
+            let score = 0;
+            if (Array.isArray(zr)) {
+                zr.forEach(z => {
+                    if(z.allStarPoints && z.allStarPoints > score) score = z.allStarPoints;
+                });
+            } else {
+                score = zr.bestAllStarPoints || zr.allStarPoints || zr.points || zr.rankPoints || 0;
+            }
+
+            document.getElementById('top-user-bar').style.display = 'flex';
+            document.getElementById('filter-input').style.display = 'block';
+            
             document.getElementById('as-pct').innerText = pct.toFixed(1);
             document.getElementById('as-pct').style.background = getC(pct);
             document.getElementById('as-pct').style.color = '#fff';
@@ -323,9 +329,9 @@
             
             document.getElementById('as-server').innerText = server;
             
-            document.getElementById('filter-input').style.display = 'block';
+            document.getElementById('as-points-label').innerText = "ALL-STAR POINTS";
+            document.getElementById('as-points').innerText = Math.floor(score).toLocaleString();
 
-            // 본인 참여 로그 필터링
             reports = [];
             const searchName = char.name;
             char.recentReports.data.forEach(r => {
@@ -337,7 +343,7 @@
                             code: r.code,
                             title: r.title,
                             fights: myFights,
-                            actors: r.masterData.actors // 검색을 위해 actors 저장
+                            actors: r.masterData.actors 
                         });
                     }
                 }
@@ -346,7 +352,6 @@
             document.getElementById('tab-nav').style.display = 'flex';
             renderFights('all', document.querySelector('.tab'));
             
-            // 데이터 로드 성공 시 설정창 자동 닫기
             closeConfig();
         } catch(e) { alert("통신 중 오류가 발생했습니다."); }
         finally { btn.innerText = "불러오기"; }
@@ -358,7 +363,6 @@
         items.forEach(el => {
             const text = el.innerText.toLowerCase();
             const players = (el.getAttribute('data-players') || "").toLowerCase();
-            // 화면에 보이는 텍스트(보스명 등) 또는 숨겨진 파티원 닉네임 목록에 포함되어 있으면 표시
             el.style.display = (text.includes(query) || players.includes(query)) ? '' : 'none';
         });
     }
@@ -478,7 +482,6 @@
         const cacheKey = `${code}-${fid}`; 
         const containerId = `inline-${cacheKey}`;
         
-        // 다시 클릭 시 전투 로그와 장비창 모두 닫힘
         if(document.getElementById(containerId)) {
             document.getElementById(containerId).remove();
             return;
@@ -611,19 +614,26 @@
             const player = allPlayers.find(p => p.name === playerName);
             const searchedChar = document.getElementById('as-name').innerText;
             const isMe = (playerName === searchedChar);
+            
+            const gearStoreKey = `${cacheKey}_${playerName}`;
 
-            // 💡 본인만 편집 가능, 타인은 보기만 가능
-            if(!player || !player.gear || player.gear.length === 0) {
+            if (editedGearCache[gearStoreKey]) {
+                subEl.innerText = `직업: ${job} (수동 편집된 데이터)`;
+                subEl.style.color = "var(--accent)";
+                gState = JSON.parse(JSON.stringify(editedGearCache[gearStoreKey]));
+            } 
+            else if(!player || !player.gear || player.gear.length === 0) {
                 if (isMe) {
                     subEl.innerText = "장비 기록이 존재하지 않습니다. 빈 슬롯으로 초기화되어 직접 편집할 수 있습니다.";
                     subEl.style.color = "var(--orange)";
-                    gState = Array(12).fill({ id: "0" }); 
+                    gState = Array.from({length: 12}, () => ({ id: "0" })); 
                 } else {
                     subEl.innerText = "FFlogs에 이 파티원의 장비 기록이 존재하지 않습니다. (타인의 장비는 수정 불가)";
                     subEl.style.color = "#e03131";
                     gState = [];
                 }
-            } else {
+            } 
+            else {
                 subEl.innerText = `직업: ${job}`;
                 subEl.style.color = "var(--sub)";
                 gState = player.gear.map(g => ({ id: String(g.id) }));
@@ -651,6 +661,8 @@
         const titleEl = document.getElementById(`gear-title-${curActiveGearId}`);
         
         const labels = ["무기", "보조무기", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지1", "반지2"];
+        const defaultIcons = ["060101", "060102", "060103", "060104", "060105", "060107", "060108", "060109", "060110", "060111", "060112", "060112"];
+        
         let totalIlvl = 0;
         let count = 0;
 
@@ -660,7 +672,7 @@
         }
         
         gridEl.innerHTML = gState.map((g, i) => {
-            const it = itemDB.find(x => x.id === g.id) || { name: "빈 슬롯 (클릭하여 설정)", icon: "000000", ilvl: 0 };
+            const it = itemDB.find(x => x.id === g.id) || { name: "빈 슬롯 (클릭하여 설정)", icon: defaultIcons[i], ilvl: 0 };
             if(it.ilvl > 0) { totalIlvl += it.ilvl; count++; }
             
             const clickEvt = editMode ? `openSearch(${i})` : '';
@@ -716,17 +728,28 @@
         document.getElementById('m-search').focus();
     }
 
+    // 💡 DB 장비 검색 모달에서도 실제 장비 아이콘을 추가로 렌더링
     function doSearch(v) {
         if(v.length < 2) return;
         const res = itemDB.filter(i => i.name.includes(v)).slice(0, 30);
-        document.getElementById('m-results').innerHTML = res.map(i => `
+        document.getElementById('m-results').innerHTML = res.map(i => {
+            const imgHtml = `<img src="https://xivapi.com/i/${i.icon.substring(0,3)}000/${i.icon}.png" style="width:36px; height:36px; border-radius:6px; background:#000; border:1px solid #444;" onerror="this.src='https://assets.rpglogs.com/img/ff/icons/Unknown.png'">`;
+            return `
             <div class="m-result-item" onclick="pick('${i.id}')">
-                <span style="font-weight:bold">${i.name}</span> <small style="color:var(--primary); float:right;">i${i.ilvl}</small>
-            </div>`).join('');
+                ${imgHtml}
+                <span style="font-weight:bold; flex:1;">${i.name}</span> 
+                <small style="color:var(--primary); font-weight:bold;">i${i.ilvl}</small>
+            </div>`;
+        }).join('');
     }
 
     function pick(id) {
         gState[curIdx.s].id = id;
+        
+        const searchedChar = document.getElementById('as-name').innerText;
+        const gearStoreKey = `${curActiveGearId}_${searchedChar}`;
+        editedGearCache[gearStoreKey] = JSON.parse(JSON.stringify(gState));
+        
         drawEditor();
         closeM();
     }
