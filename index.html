@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFXIV KR PRO LOGS (NICKNAME-BASED)</title>
+    <title>FFXIV KR PRO LOGS (AUTH-ONLY)</title>
     <style>
         :root { 
             --bg: #0a0a0c; --card: #16161a; --panel: #1f1f23;
@@ -41,11 +41,9 @@
         #editor-container { display: none; margin-top: 40px; animation: slideUp 0.4s ease-out; }
         .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 15px; }
         .gear-card { background: var(--card); border: 1px solid #2d2d33; padding: 18px; border-radius: 16px; display: flex; align-items: center; gap: 15px; }
-        .gear-card.editable { cursor: pointer; border-color: var(--primary); box-shadow: 0 0 15px rgba(192, 132, 252, 0.1); }
+        .gear-card.editable { cursor: pointer; border-color: var(--primary); }
         .item-thumb { width: 56px; height: 56px; border-radius: 12px; background: #000; border: 1px solid #333; }
-        .mat-slots { display: flex; gap: 6px; margin-top: 8px; }
-        .mat-circle { width: 24px; height: 24px; border-radius: 50%; background: #000; border: 1px solid #444; }
-
+        
         .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 999; backdrop-filter: blur(8px); }
         .modal-body { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; background: #16161a; border-radius: 24px; z-index: 1000; padding: 30px; border: 1px solid #333; }
         @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
@@ -54,7 +52,7 @@
 <body>
 
 <div class="wrapper">
-    <!-- 올스타 헤더 영역 -->
+    <!-- 캐릭터 정보 헤더 -->
     <div id="top-user-bar" class="allstar-header">
         <div class="user-info">
             <div id="as-pct" class="allstar-badge">--</div>
@@ -69,27 +67,37 @@
         </div>
     </div>
 
-    <!-- 설정 카드 -->
+    <!-- 설정 및 인증 카드 -->
     <div class="config-card">
-        <div class="input-group">
-            <input type="text" id="cid" placeholder="Client ID">
-            <input type="password" id="csec" placeholder="Client Secret">
-            <button id="auth-btn" class="btn" onclick="startAuth()">인증 및 연동</button>
+        <!-- STEP 1: API 인증 -->
+        <div style="margin-bottom: 25px; border-bottom: 1px solid #2d2d33; padding-bottom: 20px;">
+            <p style="margin-top:0; font-weight: bold; color: var(--primary);">[STEP 1] FF Logs API 인증 (소유권 확인)</p>
+            <div class="input-group">
+                <input type="text" id="cid" placeholder="FF Logs Client ID">
+                <input type="password" id="csec" placeholder="FF Logs Client Secret">
+                <button id="auth-btn" class="btn" onclick="startAuth()">API 인증</button>
+            </div>
         </div>
-        <div class="input-group" style="grid-template-columns: 100px 1fr 1fr;">
-            <input type="text" value="KOREA" readonly style="text-align: center; color: var(--accent); font-weight: bold;">
-            <select id="sv-select">
-                <option value="Fenrir">펜리르</option>
-                <option value="Chocobo">초코보</option>
-                <option value="Moogle">모그리</option>
-                <option value="Carbuncle">카벙클</option>
-                <option value="Tonberry">톤베리</option>
-            </select>
-            <input type="text" id="cnick" placeholder="캐릭터 닉네임">
+
+        <!-- STEP 2: 캐릭터 검색 -->
+        <div>
+            <p style="margin-top:0; font-weight: bold; color: var(--accent);">[STEP 2] 한국 서버 캐릭터 검색</p>
+            <div class="input-group" style="grid-template-columns: 100px 1fr 1fr auto;">
+                <input type="text" value="KOREA" readonly style="text-align: center; color: var(--accent); font-weight: bold;">
+                <select id="sv-select">
+                    <option value="Fenrir">펜리르</option>
+                    <option value="Chocobo">초코보</option>
+                    <option value="Moogle">모그리</option>
+                    <option value="Carbuncle">카벙클</option>
+                    <option value="Tonberry">톤베리</option>
+                </select>
+                <input type="text" id="cnick" placeholder="캐릭터 닉네임">
+                <button id="search-btn" class="btn" style="background: var(--accent)" onclick="loadCharData()" disabled>데이터 불러오기</button>
+            </div>
         </div>
     </div>
 
-    <!-- 탭 및 목록 -->
+    <!-- 탭 및 전투 리스트 -->
     <div id="tab-nav" class="tab-menu">
         <div class="tab active" onclick="sortFights('all', this)">전체 리포트</div>
         <div class="tab" onclick="sortFights('savage', this)">아르카디아(영웅)</div>
@@ -122,14 +130,14 @@
 </div>
 
 <script>
-    let db = [], mdb = [], reports = [], gState = [], authToken = "";
-    let curIdx = { s: null, m: null }, editMode = false, dbLoaded = false;
+    let db = [], reports = [], gState = [], authToken = "";
+    let curIdx = { s: null }, editMode = false, dbLoaded = false;
 
     const dungeonMap = { "The Arcadion: Light-heavyweight": "아르카디아: 라이트헤비급", "Savage": "영웅", "Ultimate": "절" };
     const getC = (p) => p>=100?'var(--rank-gold)':p>=99?'var(--rank-pink)':p>=95?'var(--rank-orange)':p>=75?'var(--rank-purple)':p>=50?'var(--rank-blue)':p>=25?'var(--rank-green)':'var(--rank-grey)';
     const translate = (n) => { for(let k in dungeonMap) n = n.replace(k, dungeonMap[k]); return n; };
 
-    // 아이템 DB 로드
+    // 아이템 DB 로딩
     async function initDB() {
         try {
             const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
@@ -138,24 +146,23 @@
                 const c = l.split(',');
                 return { id: c[0], name: (c[1]||"").replace(/"/g,''), icon: (c[2]||"0").padStart(6,'0'), ilvl: parseInt(c[12])||0 };
             }).filter(i => i.name);
-            mdb = db.filter(i => i.name.includes("마테리"));
             dbLoaded = true;
-        } catch(e) { console.error("DB Load Fail"); }
+        } catch(e) { console.error("Item DB load failed."); }
     }
 
-    // FF Logs 인증
+    // [API 인증] OAuth2 Client Credentials
     async function startAuth() {
-        if(!dbLoaded) return alert("아이템 데이터를 로딩 중입니다.");
-        const btn = document.getElementById('auth-btn');
+        if(!dbLoaded) return alert("아이템 데이터를 불러오는 중입니다. 잠시만 기다려주세요.");
         const id = document.getElementById('cid').value.trim();
         const sec = document.getElementById('csec').value.trim();
-        
-        if(!id || !sec) return alert("Client ID와 Secret을 입력하세요.");
+        const btn = document.getElementById('auth-btn');
+
+        if(!id || !sec) return alert("Client ID와 Client Secret을 입력해주세요.");
         btn.innerText = "인증 중...";
         btn.disabled = true;
 
         try {
-            const authRes = await fetch("https://www.fflogs.com/oauth/token", {
+            const res = await fetch("https://www.fflogs.com/oauth/token", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
@@ -163,15 +170,19 @@
                 },
                 body: "grant_type=client_credentials"
             });
-            if (!authRes.ok) throw new Error("ID/Secret 인증 실패");
-            const authData = await authRes.json();
-            authToken = authData.access_token;
-            await loadCharData();
+            const data = await res.json();
+            authToken = data.access_token;
+
+            if(authToken) {
+                alert("인증 성공! 이제 캐릭터를 검색할 수 있습니다.");
+                document.getElementById('search-btn').disabled = false;
+                btn.style.background = "var(--accent)";
+                btn.innerText = "인증 완료";
+            } else { throw new Error(); }
         } catch(e) {
-            alert(e.message);
-        } finally {
-            btn.innerText = "인증 및 연동";
+            alert("인증 실패: 정보를 다시 확인해주세요.");
             btn.disabled = false;
+            btn.innerText = "API 인증";
         }
     }
 
@@ -186,30 +197,32 @@
             recentReports(limit: 20) { data { code title fights(killType: Kills) { id name difficulty } } } 
         }}}`;
 
-        const res = await fetch("https://www.fflogs.com/api/v2/client", {
-            method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
-            body: JSON.stringify({ query: q })
-        });
-        const json = await res.json();
-        const char = json.data?.characterData?.character;
-        if(!char) return alert("캐릭터를 찾을 수 없습니다. 이름과 서버를 다시 확인하세요.");
+        try {
+            const res = await fetch("https://www.fflogs.com/api/v2/client", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
+                body: JSON.stringify({ query: q })
+            });
+            const json = await res.json();
+            const char = json.data?.characterData?.character;
+            
+            if(!char) return alert("캐릭터를 찾을 수 없습니다. 이름과 서버가 정확한지 확인하세요.");
 
-        const asp = char.zoneRankings?.rankPoints || 0;
-        const asq = char.zoneRankings?.rankPercent || 0;
-        document.getElementById('top-user-bar').style.display = 'flex';
-        document.getElementById('as-pct').innerText = asq.toFixed(1);
-        document.getElementById('as-pct').style.background = getC(asq);
-        document.getElementById('as-name').innerText = char.name;
-        document.getElementById('as-server').innerText = server;
-        document.getElementById('as-points').innerText = asp.toLocaleString();
+            const asp = char.zoneRankings?.rankPoints || 0;
+            const asq = char.zoneRankings?.rankPercent || 0;
+            document.getElementById('top-user-bar').style.display = 'flex';
+            document.getElementById('as-pct').innerText = asq.toFixed(1);
+            document.getElementById('as-pct').style.background = getC(asq);
+            document.getElementById('as-name').innerText = char.name;
+            document.getElementById('as-server').innerText = server;
+            document.getElementById('as-points').innerText = asp.toLocaleString();
 
-        reports = char.recentReports.data;
-        document.getElementById('tab-nav').style.display = 'flex';
-        document.getElementById('fight-list').style.display = 'grid';
-        sortFights('all', document.querySelector('.tab'));
+            reports = char.recentReports.data;
+            document.getElementById('tab-nav').style.display = 'flex';
+            document.getElementById('fight-list').style.display = 'grid';
+            sortFights('all', document.querySelector('.tab'));
+        } catch(e) { alert("데이터 호출 중 오류가 발생했습니다."); }
     }
 
-    // 필터링 및 리스트 출력
     function sortFights(type, el) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
@@ -227,7 +240,6 @@
         document.getElementById('fight-list').innerHTML = h || "기록이 없습니다.";
     }
 
-    // 장비 데이터 불러오기
     async function openGear(code, fid, title) {
         const q = `query { reportData { report(code: "${code}") { table(fightIDs: [${fid}], dataType: Casts) } } }`;
         const res = await fetch("https://www.fflogs.com/api/v2/client", {
@@ -236,7 +248,7 @@
         });
         const data = await res.json();
         const player = data.data.reportData.report.table.data.playerDetails[0];
-        gState = player.gear.map(g => ({ id: String(g.id), mats: g.materia ? g.materia.map(m => String(m.id)) : Array(5).fill(null) }));
+        gState = player.gear.map(g => ({ id: String(g.id) }));
         
         document.getElementById('ed-title').innerText = title;
         document.getElementById('ed-sub').innerText = `${player.name} (${player.type})`;
@@ -245,19 +257,17 @@
         drawEditor();
     }
 
-    // 장비 화면 그리기
     function drawEditor() {
         const labels = ["무기", "보조", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지1", "반지2"];
         let totalIlvl = 0;
         document.getElementById('gear-grid').innerHTML = gState.map((g, i) => {
-            const it = db.find(x => x.id === g.id) || { name: "정보 없음", icon: "000001", ilvl: 0 };
+            const it = db.find(x => x.id === g.id) || { name: "Unknown", icon: "000001", ilvl: 0 };
             totalIlvl += it.ilvl;
             return `<div class="gear-card ${editMode ? 'editable' : ''}" onclick="${editMode ? `openSearch(${i})` : ''}">
                 <img class="item-thumb" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png">
                 <div style="flex:1">
                     <small style="color:var(--sub); font-weight:bold;">${labels[i]}</small>
                     <div style="font-weight:bold; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">${it.name}</div>
-                    <div class="mat-slots">${g.mats.map(() => `<div class="mat-circle"></div>`).join('')}</div>
                 </div>
                 <div style="color:var(--primary); font-weight:900;">i${it.ilvl}</div>
             </div>`;
@@ -267,7 +277,7 @@
 
     function toggleMode() {
         editMode = !editMode;
-        document.getElementById('mode-btn').innerText = editMode ? "수정 완료" : "장비 편집 모드";
+        document.getElementById('mode-btn').innerText = editMode ? "편집 완료" : "장비 편집 모드";
         drawEditor();
     }
 
