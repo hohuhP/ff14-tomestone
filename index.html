@@ -2,178 +2,247 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>FFXIV Pro Gear Editor</title>
+    <title>FFXIV Pro Log Editor</title>
     <style>
-        :root { --bg: #0b0c10; --card: #14151a; --primary: #a855f7; --text: #e5e7eb; --sub: #9ca3af; --border: #262626; --accent: #10b981; --materia: #3b82f6; }
+        :root { 
+            --bg: #0b0c10; --card: #14151a; --primary: #a855f7; --text: #e5e7eb; --sub: #9ca3af; --border: #262626; --accent: #10b981;
+            /* 프프로그 순위 색상 */
+            --rank-gold: #ffb100; --rank-pink: #e268a8; --rank-orange: #ff8000; --rank-purple: #a335ee;
+            --rank-blue: #0070ff; --rank-green: #1eff00; --rank-grey: #666;
+        }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; }
         .wrapper { max-width: 1200px; margin: 0 auto; }
         
-        /* 설정 섹션 */
-        .config-box { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .input-field { background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 6px; outline: none; }
-        .btn-main { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        /* API 패널 */
+        .config-panel { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; }
+        .input-field { background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 8px; outline: none; }
+        .btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-        /* 로그 요약 바 */
-        .log-header { background: linear-gradient(90deg, #1a1c23, #0d0e12); border: 1px solid var(--primary); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .log-info h2 { margin: 0; font-size: 1.2rem; }
-        .log-info span { color: var(--sub); font-size: 0.9rem; }
-
-        /* 장비 그리드 */
-        .gear-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }
-        .gear-card { background: #111; border: 1px solid #222; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; transition: 0.3s; }
-        .gear-card.editing { border-color: var(--primary); box-shadow: 0 0 10px rgba(168, 85, 247, 0.2); }
-        .gear-icon { width: 52px; height: 52px; border-radius: 6px; border: 1px solid #333; cursor: pointer; }
+        /* 던전 탭 & 리스트 */
+        .tab-bar { display: none; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .tab { padding: 12px 20px; cursor: pointer; color: var(--sub); border-bottom: 2px solid transparent; }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: bold; }
         
-        .materia-group { display: flex; gap: 6px; margin-top: 8px; }
-        .materia-slot { width: 20px; height: 20px; border-radius: 50%; background: #222; border: 1px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .materia-slot img { width: 100%; height: 100%; }
+        #fight-list { display: none; background: #16171d; padding: 15px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #222; }
+        .fight-card { background: #22252e; border: 1px solid #333; padding: 12px 18px; border-radius: 6px; cursor: pointer; margin: 6px; display: inline-flex; align-items: center; gap: 15px; }
+        
+        /* 순위 색상 점수판 */
+        .rank-dot { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
 
-        /* 검색 모달 */
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; background: var(--card); border: 1px solid var(--primary); border-radius: 12px; z-index: 1000; padding: 20px; }
-        #search-results { max-height: 300px; overflow-y: auto; margin-top: 10px; }
-        .search-item { display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; border-bottom: 1px solid #222; }
-        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999; }
+        /* 에디터 UI */
+        #editor-ui { display: none; }
+        .header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 25px; background: #111; border-radius: 15px; border: 1px solid var(--border); }
+        .gear-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; }
+        .gear-card { background: var(--card); border: 1px solid #222; padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px; transition: 0.2s; }
+        .gear-card.editing { border-color: var(--primary); box-shadow: 0 0 10px rgba(168, 85, 247, 0.2); cursor: pointer; }
+        
+        .item-img { width: 50px; height: 50px; border-radius: 6px; border: 1px solid #333; }
+        .materia-row { display: flex; gap: 4px; margin-top: 8px; }
+        .mat-slot { width: 20px; height: 20px; border-radius: 50%; background: #000; border: 1px solid #444; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+        /* 모달 */
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 420px; background: var(--card); border: 1px solid var(--primary); border-radius: 16px; z-index: 1000; padding: 25px; }
     </style>
 </head>
 <body>
 
 <div class="wrapper">
-    <div class="config-box">
-        <input type="text" id="api-key" class="input-field" placeholder="FFLogs API Key (v2)">
-        <input type="text" id="report-id" class="input-field" placeholder="Report ID (예: JxY9V7K2b...) ">
-        <button class="btn-main" onclick="fetchRealLog()">로그 데이터 가져오기</button>
+    <div class="config-panel">
+        <input type="password" id="api-key" class="input-field" placeholder="FFLogs API v2 Token">
+        <input type="text" id="report-id" class="input-field" placeholder="Report ID">
+        <button class="btn" onclick="fetchLogs()">실제 로그 연동</button>
     </div>
 
-    <div id="main-content" style="display:none;">
-        <div class="log-header">
-            <div class="log-info">
-                <span id="log-date">DATE: 2026-05-13</span>
-                <h2 id="log-title">REPORT TITLE</h2>
-                <div id="char-list" style="margin-top:10px; display:flex; gap:10px;"></div>
+    <div id="tab-bar" class="tab-bar">
+        <div class="tab active" onclick="renderFights('all', this)">전체</div>
+        <div class="tab" onclick="renderFights('ultimate', this)">절 (ULT)</div>
+        <div class="tab" onclick="renderFights('savage', this)">영식 (SVG)</div>
+        <div class="tab" onclick="renderFights('extreme', this)">극 (EXT)</div>
+        <div class="tab" onclick="filterOther(this)">기타</div>
+    </div>
+
+    <div id="fight-list"></div>
+
+    <div id="editor-ui">
+        <div class="header-info">
+            <div>
+                <h2 id="view-fight-name" style="margin:0;">전투를 선택하세요</h2>
+                <div id="view-char-name" style="color:var(--sub); margin-top:5px;">캐릭터 분석 대기 중</div>
             </div>
             <div style="text-align:right">
-                <button id="edit-all-btn" class="btn-main" style="background:var(--accent);" onclick="toggleEditMode()">모든 장비 수정 모드</button>
-                <div id="avg-display" style="font-size:24px; font-weight:bold; color:var(--primary); margin-top:10px;">i000.00</div>
+                <button id="edit-btn" class="btn" style="background:var(--accent)" onclick="toggleEdit()">모든 장비 수정 모드</button>
+                <div id="view-ilvl" style="font-size:28px; font-weight:900; color:var(--primary); margin-top:5px;">i000.00</div>
             </div>
         </div>
-
-        <div id="gear-grid" class="gear-container"></div>
+        <div id="gear-grid" class="gear-grid"></div>
     </div>
 </div>
 
 <div id="modal-overlay" class="overlay" onclick="closeModal()"></div>
 <div id="search-modal" class="modal">
-    <h4 id="modal-title" style="margin:0 0 15px 0;">아이템 검색</h4>
-    <input type="text" id="search-input" class="input-field" style="width:100%; box-sizing:border-box;" placeholder="이름으로 검색..." oninput="filterItems(this.value)">
-    <div id="search-results"></div>
+    <h3 id="modal-title" style="margin:0 0 15px 0;">아이템 검색</h3>
+    <input type="text" id="search-input" class="input-field" style="width:100%; box-sizing:border-box;" placeholder="이름으로 검색..." oninput="doSearch(this.value)">
+    <div id="search-results" style="max-height: 350px; overflow-y: auto; margin-top: 15px;"></div>
 </div>
 
 <script>
-    let itemDB = [];
-    let materiaDB = [];
-    let isEditMode = false;
-    let currentLogData = null;
-    let activeSelection = { slotIdx: null, matIdx: null };
+    let itemDB = [], materiaDB = [];
+    let reportData = null, isEdit = false;
+    let currentGears = [], pointer = { s: null, m: null };
 
-    // 1. 한국어 DB 로드
-    async function loadDB() {
+    // 1. 순위 색상 결정 함수
+    function getRankColor(pct) {
+        if (pct >= 100) return 'var(--rank-gold)';
+        if (pct >= 99) return 'var(--rank-pink)';
+        if (pct >= 95) return 'var(--rank-orange)';
+        if (pct >= 75) return 'var(--rank-purple)';
+        if (pct >= 50) return 'var(--rank-blue)';
+        if (pct >= 25) return 'var(--rank-green)';
+        return 'var(--rank-grey)';
+    }
+
+    // 2. 초기화 및 DB 로드
+    async function init() {
         const res = await fetch("https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv");
-        const text = await res.text();
-        itemDB = text.split('\n').slice(3).map(line => {
-            const c = line.split(',');
+        const csv = await res.text();
+        itemDB = csv.split('\n').slice(3).map(l => {
+            const c = l.split(',');
             return { id: c[0]?.trim(), name: c[1]?.replace(/"/g,''), icon: c[2]?.padStart(6,'0'), ilvl: parseInt(c[12])||0 };
         }).filter(i => i.name);
         materiaDB = itemDB.filter(i => i.name.includes("마테리"));
     }
 
-    // 2. 실제 로그 가져오기 (FFLogs API v2 시뮬레이션 및 연동 구조)
-    async function fetchRealLog() {
-        const reportId = document.getElementById('report-id').value;
-        if(!reportId) return alert("Report ID를 입력해주세요.");
+    // 3. 로그 데이터 로드 (API)
+    async function fetchLogs() {
+        const token = document.getElementById('api-key').value;
+        const rid = document.getElementById('report-id').value;
+        const query = `query { reportData { report(code: "${rid}") { 
+            fights(killType: Kills) { id name difficulty bossPercentage }
+            table(dataType: DamageDone)
+            masterData { actors(type: "Player") { id name subType } }
+        }}}`;
 
-        // 실제 구현 시 여기서 GQL 호출
-        // 아래는 API로부터 받아온 데이터를 가정함
-        currentLogData = {
-            title: "희망의 낙원 에덴: 재생편 4 (영웅)",
-            date: "2026-05-13",
-            gear: Array(12).fill(null).map(() => ({ id: "42431", materias: Array(5).fill(null) }))
-        };
-
-        document.getElementById('log-title').innerText = currentLogData.title;
-        document.getElementById('main-content').style.display = 'block';
-        renderGear();
+        try {
+            const res = await fetch("https://www.fflogs.com/api/v2/client", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ query })
+            });
+            const json = await res.json();
+            reportData = json.data.reportData.report;
+            
+            document.getElementById('tab-bar').style.display = 'flex';
+            document.getElementById('fight-list').style.display = 'block';
+            renderFights('all', document.querySelector('.tab'));
+        } catch(e) { alert("API 연동 실패!"); }
     }
 
-    // 3. 통합 수정 모드 토글
-    function toggleEditMode() {
-        isEditMode = !isEditMode;
-        const btn = document.getElementById('edit-all-btn');
-        btn.innerText = isEditMode ? "수정 완료 (저장)" : "모든 장비 수정 모드";
-        btn.style.background = isEditMode ? "var(--primary)" : "var(--accent)";
-        renderGear();
+    // 4. 던전 리스트 & 순위 색상 출력
+    function renderFights(type, el) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+
+        let filtered = reportData.fights;
+        if(type === 'ultimate') filtered = filtered.filter(f => f.difficulty === 5);
+        else if(type === 'savage') filtered = filtered.filter(f => f.difficulty === 101);
+        else if(type === 'extreme') filtered = filtered.filter(f => f.difficulty === 10);
+
+        document.getElementById('fight-list').innerHTML = filtered.map(f => {
+            // 가상의 Percentile 계산 (실제 API 상세 연동 시 rank 데이터 활용)
+            const mockPct = Math.floor(Math.random() * 100); 
+            const color = getRankColor(mockPct);
+
+            return `<div class="fight-card" onclick="loadGearDetail(${f.id}, '${f.name}', ${mockPct})">
+                <div class="rank-dot" style="background:${color}">${mockPct}</div>
+                <div style="font-weight:bold;">${f.name}</div>
+            </div>`;
+        }).join('');
     }
 
-    function renderGear() {
-        const slots = ["주무기", "보조무기", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지 1", "반지 2"];
-        let totalIlvl = 0;
+    // 5. 실제 장비 로드 및 에디터 활성화
+    async function loadGearDetail(fid, fname, pct) {
+        const token = document.getElementById('api-key').value;
+        const rid = document.getElementById('report-id').value;
+        const aid = reportData.masterData.actors[0].id;
 
-        const html = currentLogData.gear.map((g, i) => {
-            const item = itemDB.find(it => it.id === g.id) || { name: "알 수 없음", icon: "000001", ilvl: 0 };
-            totalIlvl += item.ilvl;
+        const query = `query { reportData { report(code: "${rid}") { table(fightIDs: [${fid}], dataType: Casts) } } }`;
+        const res = await fetch("https://www.fflogs.com/api/v2/client", {
+            method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            body: JSON.stringify({ query })
+        });
+        const json = await res.json();
+        const player = json.data.reportData.report.table.data.playerDetails.find(p => p.id === aid);
+
+        currentGears = player.gear.map(g => ({
+            id: String(g.id),
+            mats: g.materia ? g.materia.map(m => String(m.id)) : Array(5).fill(null)
+        }));
+
+        document.getElementById('view-fight-name').innerHTML = `${fname} <span style="color:${getRankColor(pct)}">(${pct})</span>`;
+        document.getElementById('view-char-name').innerText = player.name;
+        document.getElementById('editor-ui').style.display = 'block';
+        renderEditor();
+    }
+
+    function renderEditor() {
+        const slots = ["주무기", "보조", "머리", "상의", "장갑", "하의", "신발", "귀걸이", "목걸이", "팔찌", "반지1", "반지2"];
+        let total = 0;
+
+        document.getElementById('gear-grid').innerHTML = currentGears.map((g, i) => {
+            const it = itemDB.find(x => x.id === g.id) || { name: "알 수 없음", icon: "000001", ilvl: 0 };
+            total += it.ilvl;
             return `
-                <div class="gear-card ${isEditMode ? 'editing' : ''}">
-                    <img class="gear-icon" src="https://xivapi.com/i/${item.icon.substring(0,3)}000/${item.icon}.png" 
-                         onclick="${isEditMode ? `openModal(${i}, null)` : ''}">
+                <div class="gear-card ${isEdit ? 'editing' : ''}" onclick="${isEdit ? `openModal(${i}, null)` : ''}">
+                    <img class="item-img" src="https://xivapi.com/i/${it.icon.substring(0,3)}000/${it.icon}.png">
                     <div style="flex:1">
-                        <div style="font-size:11px; color:var(--sub)">${slots[i]}</div>
-                        <div style="font-weight:bold; font-size:14px;">${item.name}</div>
-                        <div class="materia-group">
-                            ${g.materias.map((mId, mIdx) => {
-                                const m = materiaDB.find(mat => mat.id === mId);
-                                return `<div class="materia-slot" onclick="${isEditMode ? `openModal(${i}, ${mIdx})` : ''}">
-                                    ${m ? `<img src="https://xivapi.com/i/${m.icon.substring(0,3)}000/${m.icon}.png">` : '+'}
+                        <div style="font-size:10px; color:var(--sub)">${slots[i]}</div>
+                        <div style="font-weight:bold; font-size:13px;">${it.name}</div>
+                        <div class="materia-row">
+                            ${g.mats.map((mid, midx) => {
+                                const m = materiaDB.find(mx => mx.id === mid);
+                                return `<div class="mat-slot" onclick="${isEdit ? `event.stopPropagation(); openModal(${i}, ${midx})` : ''}">
+                                    ${m ? `<img src="https://xivapi.com/i/${m.icon.substring(0,3)}000/${m.icon}.png" width="100%">` : ''}
                                 </div>`;
                             }).join('')}
                         </div>
                     </div>
-                    <div style="color:var(--accent); font-weight:bold;">i${item.ilvl}</div>
+                    <div style="font-weight:bold; color:var(--accent)">i${it.ilvl}</div>
                 </div>
             `;
         }).join('');
-
-        document.getElementById('gear-grid').innerHTML = html;
-        document.getElementById('avg-display').innerText = `i${(totalIlvl/12).toFixed(2)}`;
+        document.getElementById('view-ilvl').innerText = `i${(total/12).toFixed(2)}`;
     }
 
-    // 4. 검색 및 교체
-    function openModal(sIdx, mIdx) {
-        activeSelection = { sIdx, mIdx };
-        document.getElementById('modal-title').innerText = mIdx === null ? "장비 검색" : "마테리아 검색";
+    function toggleEdit() {
+        isEdit = !isEdit;
+        const btn = document.getElementById('edit-btn');
+        btn.innerText = isEdit ? "편집 완료" : "모든 장비 수정 모드";
+        btn.style.background = isEdit ? "#3b82f6" : "var(--accent)";
+        renderEditor();
+    }
+
+    function openModal(s, m) {
+        pointer = { s, m };
         document.getElementById('modal-overlay').style.display = 'block';
         document.getElementById('search-modal').style.display = 'block';
-        document.getElementById('search-input').value = "";
-        document.getElementById('search-results').innerHTML = "";
     }
 
-    function filterItems(query) {
-        if(query.length < 2) return;
-        const db = activeSelection.mIdx === null ? itemDB : materiaDB;
-        const filtered = db.filter(i => i.name.includes(query)).slice(0, 20);
-        
-        document.getElementById('search-results').innerHTML = filtered.map(item => `
-            <div class="search-item" onclick="applySelection('${item.id}')">
-                <img src="https://xivapi.com/i/${item.icon.substring(0,3)}000/${item.icon}.png" width="30">
-                <span>${item.name} (i${item.ilvl})</span>
+    function doSearch(q) {
+        if(q.length < 2) return;
+        const db = pointer.m === null ? itemDB : materiaDB;
+        const res = db.filter(i => i.name.includes(q)).slice(0, 15);
+        document.getElementById('search-results').innerHTML = res.map(i => `
+            <div style="display:flex; align-items:center; gap:10px; padding:10px; cursor:pointer;" onclick="apply('${i.id}')">
+                <img src="https://xivapi.com/i/${i.icon.substring(0,3)}000/${i.icon}.png" width="30">
+                <span>${i.name}</span>
             </div>
         `).join('');
     }
 
-    function applySelection(id) {
-        const { sIdx, mIdx } = activeSelection;
-        if(mIdx === null) currentLogData.gear[sIdx].id = id;
-        else currentLogData.gear[sIdx].materias[mIdx] = id;
-        renderGear();
-        closeModal();
+    function apply(id) {
+        if(pointer.m === null) currentGears[pointer.s].id = id;
+        else currentGears[pointer.s].mats[pointer.m] = id;
+        renderEditor(); closeModal();
     }
 
     function closeModal() {
@@ -181,7 +250,7 @@
         document.getElementById('search-modal').style.display = 'none';
     }
 
-    loadDB();
+    init();
 </script>
 </body>
 </html>
